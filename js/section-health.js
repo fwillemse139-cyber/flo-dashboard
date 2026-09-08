@@ -1,0 +1,219 @@
+import { loadArray, saveArray } from "./store.js";
+
+var STORAGE_KEY = "flo.health_log";
+var SESSION_KEY = "flo.health_active_session";
+var container = null;
+var entries = [];
+var notionAvailable = false;
+var tickInterval = null;
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function persist() {
+  saveArray(STORAGE_KEY, entries);
+  if (notionAvailable) {
+    fetch("/api/notion?target=health", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: entries })
+    }).catch(function () {});
+  }
+}
+
+export async function init(rootEl) {
+  container = rootEl;
+  entries = loadArray(STORAGE_KEY);
+  render();
+
+  try {
+    var res = await fetch("/api/notion?target=health");
+    if (res.ok) {
+      var body = await res.json();
+      var notionEntries = body.data || [];
+      notionAvailable = true;
+      if (notionEntries.length === 0 && entries.length > 0) {
+        persist(); // eerste keer: lokale historie omhoog duwen i.p.v. overschrijven
+      } else {
+        entries = notionEntries;
+        saveArray(STORAGE_KEY, entries);
+      }
+      render();
+    }
+  } catch (e) {
+    // geen backend beschikbaar — blijft bij de lokale versie
+  }
+
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(render, 30000); // houdt de live-sessieduur actueel
+}
+
+function getEntry(date) {
+  return entries.find(function (e) { return e.date === date; });
+}
+
+function upsertEntry(patch) {
+  var date = todayStr();
+  var existing = getEntry(date);
+  if (existing) {
+    Object.assign(existing, patch);
+  } else {
+    entries.push(Object.assign({ date: date, mood: "", energy: null, productivity: null, wakeTime: "", note: "", workMinutes: 0 }, patch));
+  }
+  persist();
+}
+
+// ---------- Tijd-tracking (werksessies) ----------
+function getActiveSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { return null; }
+}
+function setActiveSession(session) {
+  try {
+    if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+}
+
+function startSession() {
+  setActiveSession({ startedAt: Date.now() });
+  render();
+}
+
+function stopSession() {
+  var session = getActiveSession();
+  if (!session) return;
+  var minutes = Math.round((Date.now() - session.startedAt) / 60000);
+  setActiveSession(null);
+  var date = todayStr();
+  var existing = getEntry(date);
+  var currentMinutes = existing && existing.workMinutes ? existing.workMinutes : 0;
+  upsertEntry({ workMinutes: currentMinutes + Math.max(minutes, 0) });
+}
+
+// ---------- Analytics ----------
+function average(list, key) {
+  var vals = list.map(function (e) { return e[key]; }).filter(function (v) { return typeof v === "number"; });
+  if (vals.length === 0) return null;
+  return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+}
+
+function entriesInLastDays(days) {
+  var cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return entries.filter(function (e) { return new Date(e.date).getTime() >= cutoff; });
+}
+
+function fmtNum(n) { return n == null ? "—" : n.toFixed(1); }
+
+function renderChart(list) {
+  var w = 560, h = 120, pad = 20;
+  var sorted = list.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+  if (sorted.length === 0) return '<div class="empty-drop">Nog geen data</div>';
+  var stepX = sorted.length > 1 ? (w - pad * 2) / (sorted.length - 1) : 0;
+  function toY(v) { return h - pad - ((v - 1) / 9) * (h - pad * 2); }
+  function pathFor(key, color) {
+    var points = sorted.map(function (e, i) {
+      var v = e[key];
+      if (typeof v !== "number") return null;
+      return (pad + i * stepX) + "," + toY(v);
+    }).filter(function (p) { return p; });
+    if (points.length === 0) return "";
+    return '<polyline fill="none" stroke="' + color + '" stroke-width="2" points="' + points.join(" ") + '"/>';
+  }
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">';
+  svg += pathFor("energy", "#3b82f6");
+  svg += pathFor("productivity", "#10b981");
+  svg += "</svg>";
+  svg += '<div style="display:flex;gap:16px;font-size:11px;color:var(--muted);margin-top:6px;">';
+  svg += '<span><span style="display:inline-block;width:8px;height:8px;background:#3b82f6;border-radius:2px;margin-right:5px;"></span>Energie</span>';
+  svg += '<span><span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:2px;margin-right:5px;"></span>Productiviteit</span>';
+  svg += "</div>";
+  return svg;
+}
+
+function render() {
+  if (!container) return;
+  var today = todayStr();
+  var todayEntry = getEntry(today) || {};
+  var session = getActiveSession();
+
+  var week = entriesInLastDays(7);
+  var month = entriesInLastDays(30);
+  var last30 = entriesInLastDays(30);
+  var peakEnergyDay = last30.slice().sort(function (a, b) { return (b.energy || 0) - (a.energy || 0); })[0];
+
+  var html = '<div class="section-header"><h2>Health</h2><div class="tagline">Dagelijkse check-in, energie/productiviteit-trend en werksessies</div></div>';
+  html += '<div class="home-grid">';
+
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Hoe voel je je vandaag?</div>';
+  html += '<div class="health-form">';
+  html += '<label class="field-label">Mood</label><select class="field" id="hl-mood">';
+  ["", "Top", "Goed", "Oké", "Matig", "Slecht"].forEach(function (m) {
+    html += '<option value="' + esc(m) + '" ' + (todayEntry.mood === m ? "selected" : "") + '>' + (m || "Kies…") + "</option>";
+  });
+  html += "</select>";
+  html += '<label class="field-label">Energie (1-10)</label><input class="field" id="hl-energy" type="number" min="1" max="10" value="' + (todayEntry.energy != null ? todayEntry.energy : "") + '">';
+  html += '<label class="field-label">Productiviteit (1-10)</label><input class="field" id="hl-productivity" type="number" min="1" max="10" value="' + (todayEntry.productivity != null ? todayEntry.productivity : "") + '">';
+  html += '<label class="field-label">Hoe laat opgestaan?</label><input class="field" id="hl-waketime" type="time" value="' + esc(todayEntry.wakeTime || "") + '">';
+  html += '<label class="field-label">Waarom / notitie</label><textarea class="field" id="hl-note" style="min-height:60px;">' + esc(todayEntry.note || "") + '</textarea>';
+  html += '<button class="new-task-btn" id="hl-save" style="margin-top:14px;">Opslaan</button>';
+  html += "</div></div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Werksessie</div>';
+  if (session) {
+    var elapsedMin = Math.round((Date.now() - session.startedAt) / 60000);
+    html += '<div class="home-line"><span>Bezig sinds ' + new Date(session.startedAt).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }) + '</span><span class="deadline">' + elapsedMin + ' min</span></div>';
+    html += '<button class="new-task-btn" id="hl-stop" style="margin-top:10px;">Stop sessie</button>';
+  } else {
+    html += '<div class="home-line"><span>Vandaag totaal</span><span class="deadline">' + (todayEntry.workMinutes || 0) + ' min</span></div>';
+    html += '<button class="new-task-btn" id="hl-start" style="margin-top:10px;">Start sessie</button>';
+  }
+  html += "</div>";
+
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Trend (laatste 14 dagen)</div>';
+  html += renderChart(entriesInLastDays(14));
+  html += "</div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Deze week</div>';
+  html += '<div class="home-line"><span>Gem. energie</span><span class="deadline">' + fmtNum(average(week, "energy")) + '</span></div>';
+  html += '<div class="home-line"><span>Gem. productiviteit</span><span class="deadline">' + fmtNum(average(week, "productivity")) + '</span></div>';
+  html += '<div class="home-line"><span>Werktijd totaal</span><span class="deadline">' + Math.round(week.reduce(function (a, e) { return a + (e.workMinutes || 0); }, 0) / 60 * 10) / 10 + ' u</span></div>';
+  html += "</div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Deze maand</div>';
+  html += '<div class="home-line"><span>Gem. energie</span><span class="deadline">' + fmtNum(average(month, "energy")) + '</span></div>';
+  html += '<div class="home-line"><span>Gem. productiviteit</span><span class="deadline">' + fmtNum(average(month, "productivity")) + '</span></div>';
+  html += '<div class="home-line"><span>Piekdag energie</span><span class="deadline">' + (peakEnergyDay ? esc(peakEnergyDay.date) + " (" + peakEnergyDay.energy + ")" : "—") + '</span></div>';
+  html += "</div>";
+
+  html += "</div>";
+
+  container.innerHTML = html;
+  attachEvents();
+}
+
+function attachEvents() {
+  var app = container;
+  var saveBtn = app.querySelector("#hl-save");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", function () {
+      upsertEntry({
+        mood: app.querySelector("#hl-mood").value,
+        energy: app.querySelector("#hl-energy").value ? parseInt(app.querySelector("#hl-energy").value, 10) : null,
+        productivity: app.querySelector("#hl-productivity").value ? parseInt(app.querySelector("#hl-productivity").value, 10) : null,
+        wakeTime: app.querySelector("#hl-waketime").value,
+        note: app.querySelector("#hl-note").value
+      });
+      render();
+    });
+  }
+  var startBtn = app.querySelector("#hl-start");
+  if (startBtn) startBtn.addEventListener("click", startSession);
+  var stopBtn = app.querySelector("#hl-stop");
+  if (stopBtn) stopBtn.addEventListener("click", stopSession);
+}

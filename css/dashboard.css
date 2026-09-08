@@ -177,3 +177,15 @@ a{color:inherit;}
 .home-tools-row{display:flex;flex-wrap:wrap;gap:8px;}
 .deadlines-week-stat{font-size:12px;color:var(--muted);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border-soft);}
 .deadline-urgent{color:var(--high);font-weight:700;}
+
+/* ---------- Health / Financial forms ---------- */
+.health-form{display:flex;flex-direction:column;max-width:420px;}
+.upload-drop{border:1.5px dashed var(--border);border-radius:var(--radius);padding:20px;text-align:center;color:var(--muted);font-size:12.5px;cursor:pointer;}
+.upload-drop:hover{border-color:var(--muted-soft);}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:13px;}
+.stat-row:last-child{border-bottom:none;}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;}
+.bar-label{width:110px;flex-shrink:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{flex:1;background:var(--surface-hover);border-radius:4px;height:8px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--primary);border-radius:4px;}
+.bar-value{width:70px;text-align:right;flex-shrink:0;color:var(--text);font-weight:600;}

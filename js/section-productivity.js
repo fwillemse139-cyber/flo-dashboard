@@ -126,7 +126,7 @@ function persist() {
     fetch("/api/notion?target=kanban", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tasks: state.tasks })
+      body: JSON.stringify({ data: state.tasks })
     }).catch(function () {});
   }
 }
@@ -144,7 +144,7 @@ export async function init(rootEl) {
     var res = await fetch("/api/notion?target=kanban");
     if (res.ok) {
       var data = await res.json();
-      var notionTasks = data.tasks || [];
+      var notionTasks = data.data || [];
       notionAvailable = true;
       if (notionTasks.length === 0 && state.tasks.length > 0) {
         // Eerste keer dat Notion-sync aanstaat op dit apparaat: Notion is

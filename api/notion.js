@@ -1,10 +1,16 @@
-// Vercel serverless function — leest/schrijft rechtstreeks in de "Tasks"
-// Notion-pagina onder Personal (dashboard-opslag), en leest (read-only)
-// de "Daily Tasks"-database uit de Productivity-pagina voor de
-// Agenda-widget — dit is dezelfde database die Floris al als
-// geabonneerde agenda in Apple Agenda had (via Notion's eigen iCal-sync),
-// maar die kon niet los "openbaar" gemaakt worden. Hier gaan we rechtstreeks
-// naar de bron via de Notion API.
+// Vercel serverless function — leest/schrijft rechtstreeks in Notion.
+// Meerdere "targets", allemaal onder dezelfde ene interne integratie
+// ("Flo's Dashboard"):
+//
+//   - tasks: to_do-blocks op de "Tasks"-pagina (Personal)
+//   - agenda (read-only): "Daily Tasks"-database (Productivity), items
+//     met een "Geplande tijd"
+//   - kanban / health / financial / suerte: elk hun eigen JSON-blob-pagina
+//     (kind-pagina van "Tasks", erft dus automatisch dezelfde
+//     Connections-toegang — geen aparte deel-stap nodig per stuk).
+//     GET geeft { data: <geparste JSON> }, PUT verwacht { data: <JSON> }
+//     en overschrijft de hele blob (simpel "heel document opslaan"-patroon,
+//     past bij hoe elke sectie z'n eigen state al in-memory bijhoudt).
 //
 // Eenmalige setup (Floris):
 //   1. Maak een interne integratie op https://www.notion.so/profile/integrations
@@ -12,20 +18,17 @@
 //   2. Zet 'm als env var NOTION_TOKEN in Vercel.
 //   3. Open de "Tasks"-pagina én de "Daily Tasks"-database (onder
 //      Productivity) in Notion → "..." menu rechtsboven → Connections
-//      → voeg de zojuist gemaakte integratie toe aan beide.
-//      (Zonder deze stap krijgt de integratie een 403/404.)
-//
-// Tasks-pagina: elke taak = één to_do-block (met checkbox-status).
-// Agenda: leest "Daily Tasks"-database, items met een "Geplande tijd".
+//      → voeg de integratie toe aan beide (de JSON-blob-pagina's hoeven
+//      dat niet apart, want die zijn kind-pagina's van "Tasks").
 var NOTION_VERSION = "2022-06-28";
 var TASKS_PAGE_ID = "27eb6cf8f8be8048b2b8f69d731807bc";
 var AGENDA_DATABASE_ID = "13c79dd716294889ad16a6757bb5b6c7";
-// "Kanban Data" is een kind-pagina van "Tasks" — erft dus automatisch
-// dezelfde Connections-toegang, geen aparte deel-stap nodig. Slaat het
-// hele Productivity System-taken-array op als JSON in één code-block,
-// zodat elk apparaat exact dezelfde data leest/schrijft (echte sync,
-// i.p.v. losse localStorage per apparaat).
-var KANBAN_PAGE_ID = "3d5b6cf8f8be8177a14ee74f07a4d799";
+var BLOB_PAGE_IDS = {
+  kanban: "3d5b6cf8f8be8177a14ee74f07a4d799",   // "Kanban Data" — Productivity System
+  health: "3d5b6cf8f8be812d913ad581287eff11",   // "Health Log Data"
+  financial: "3d5b6cf8f8be816691a9c8eeec5cc20d", // "Financial Data"
+  suerte: "3d5b6cf8f8be81c39a57d3865782bed5"     // "Suerte Clients Data"
+};
 
 function notionFetch(token, path, options) {
   return fetch("https://api.notion.com/v1" + path, Object.assign({
@@ -69,22 +72,22 @@ async function updateTask(token, blockId, payload) {
   return { ok: true };
 }
 
-async function findCodeBlockId(token) {
-  var res = await notionFetch(token, "/blocks/" + KANBAN_PAGE_ID + "/children?page_size=100");
+async function findCodeBlockId(token, pageId) {
+  var res = await notionFetch(token, "/blocks/" + pageId + "/children?page_size=100");
   var data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Notion kanban list failed");
+  if (!res.ok) throw new Error(data.message || "Notion blob list failed");
   var codeBlock = (data.results || []).find(function (b) { return b.type === "code"; });
   return codeBlock ? codeBlock.id : null;
 }
 
-async function listKanban(token) {
-  var res = await notionFetch(token, "/blocks/" + KANBAN_PAGE_ID + "/children?page_size=100");
+async function loadBlob(token, pageId, fallback) {
+  var res = await notionFetch(token, "/blocks/" + pageId + "/children?page_size=100");
   var data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Notion kanban list failed");
+  if (!res.ok) throw new Error(data.message || "Notion blob list failed");
   var codeBlock = (data.results || []).find(function (b) { return b.type === "code"; });
-  if (!codeBlock) return [];
+  if (!codeBlock) return fallback;
   var text = plainText(codeBlock.code.rich_text);
-  try { return JSON.parse(text); } catch (e) { return []; }
+  try { return JSON.parse(text); } catch (e) { return fallback; }
 }
 
 // Notion-tekstblokken hebben een limiet van 2000 tekens per rich_text-run,
@@ -97,13 +100,13 @@ function chunkRichText(text) {
   return chunks.map(function (c) { return { type: "text", text: { content: c } }; });
 }
 
-async function saveKanban(token, tasks) {
-  var blockId = await findCodeBlockId(token);
-  var body = { code: { rich_text: chunkRichText(JSON.stringify(tasks)), language: "javascript" } };
-  if (!blockId) throw new Error("Kon het Kanban Data code-block niet vinden");
+async function saveBlob(token, pageId, value) {
+  var blockId = await findCodeBlockId(token, pageId);
+  if (!blockId) throw new Error("Kon het code-block niet vinden op deze pagina");
+  var body = { code: { rich_text: chunkRichText(JSON.stringify(value)), language: "javascript" } };
   var res = await notionFetch(token, "/blocks/" + blockId, { method: "PATCH", body: JSON.stringify(body) });
   var data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Notion kanban save failed");
+  if (!res.ok) throw new Error(data.message || "Notion blob save failed");
   return { ok: true };
 }
 
@@ -141,7 +144,7 @@ export default async function handler(req, res) {
   if (!token) { res.status(500).json({ error: "NOTION_TOKEN ontbreekt in Vercel environment variables" }); return; }
 
   var target = (req.query && req.query.target) || (new URL(req.url, "http://x").searchParams.get("target"));
-  if (target !== "tasks" && target !== "agenda" && target !== "kanban") { res.status(400).json({ error: "target moet 'tasks', 'agenda' of 'kanban' zijn" }); return; }
+  var blobPageId = BLOB_PAGE_IDS[target];
 
   try {
     if (target === "agenda") {
@@ -150,12 +153,13 @@ export default async function handler(req, res) {
       res.status(200).json({ events: await listAgenda(token) });
       return;
     }
-    if (target === "kanban") {
-      if (req.method === "GET") { res.status(200).json({ tasks: await listKanban(token) }); return; }
-      if (req.method === "PUT") { res.status(200).json(await saveKanban(token, (req.body || {}).tasks || [])); return; }
-      res.status(405).json({ error: "kanban ondersteunt alleen GET/PUT" });
+    if (blobPageId) {
+      if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, target === "kanban" ? [] : null) }); return; }
+      if (req.method === "PUT") { res.status(200).json(await saveBlob(token, blobPageId, (req.body || {}).data)); return; }
+      res.status(405).json({ error: target + " ondersteunt alleen GET/PUT" });
       return;
     }
+    if (target !== "tasks") { res.status(400).json({ error: "onbekende target" }); return; }
     if (req.method === "GET") {
       res.status(200).json({ items: await listTasks(token) });
     } else if (req.method === "POST") {

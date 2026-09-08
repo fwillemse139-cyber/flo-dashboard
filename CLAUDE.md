@@ -129,15 +129,32 @@ vraag Claude de 5 Notion-pagina's opnieuw op te halen en de array +
 `NOTION_LAST_SYNCED` bij te werken. Geen live browser-koppeling met
 Notion — dit blijft een door Claude getriggerde, handmatige sync.
 
-## Wat Floris hierna eventueel wil
+## Health en Suerte (8 sept 2026, nieuwe pagina's)
 
-- Deployen naar een gratis statische host (Vercel/Netlify/GitHub Pages)
-  zodat de URL ook op andere apparaten werkt — let wel: zonder backend
-  blijft elk apparaat zijn EIGEN localStorage-kopie houden, geen sync
-- Live markt-koersen alsnog aansluiten — vereist alsnog een minimale
-  server-side component (een enkele serverless functie volstaat, hoeft
-  geen volledig account-systeem te zijn zoals de afgeschafte Supabase-opzet)
-- Visuele restyle verder verfijnen indien gewenst
+Nav is nu **Home / Productivity System / Health / Suerte**.
+
+- **`js/section-health.js`** (`?target=health` in `api/notion.js`, zelfde
+  JSON-blob-patroon als kanban): dagelijkse check-in (mood/energie 1-10/
+  productiviteit 1-10/wektijd/notitie, één entry per dag) + werksessie-
+  tracking (start/stop-knop, telt minuten op bij de dag van vandaag) +
+  analytics (week-/maandgemiddelden, piekdag, een simpele inline-SVG
+  trendlijn over de laatste 14 dagen voor energie/productiviteit).
+- **`js/section-suerte.js`** (business-hub):
+  - **Financial** (`?target=financial`): Revolut-PDF uploaden → client-side
+    uitgelezen met pdf.js (dynamisch geladen vanaf cdnjs, alleen bij
+    gebruik) → regel-voor-regel gematcht op een datum+bedrag-patroon →
+    automatische categorie-gok op basis van trefwoorden (boodschappen/
+    vervoer/abonnementen/etc., anders "Overig"). **Ongetest tegen een
+    echt Revolut-bestand** — dit is best-effort tekstherkenning, de
+    kolom-uitlijning van een PDF kan onvoorspelbaar zijn. Vraag Floris om
+    een echt bestand te proberen en meld wat er misgaat, dan verfijn ik
+    de regex. Handmatig een transactie toevoegen werkt sowieso altijd als
+    fallback. Toont grootste uitgavecategorieën en inkomstenbronnen als
+    staafdiagrammen.
+  - **Clients** (`?target=suerte`): simpele naam/project/status-tracker
+    (Actief/On hold/Afgerond).
+- **Niet gebouwd, bewust**: hoeveel Claude-gebruik (quota/reset-tijd) er
+  nog is — daar bestaat geen door mij uitleesbare API/databron voor.
 
 ## Voorkeuren
 
