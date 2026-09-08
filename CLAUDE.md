@@ -30,8 +30,6 @@ aanpak.
 - `js/section-*.js` — één module per sectie (Home, Agenda, Quick Notes,
   Tasks, Productivity System, Connected Tools, Markets)
 - `js/marketsCore.js` — gedeelde beursuren-logica (Home en Markets gebruiken 'm allebei)
-- `js/migrateLegacy.js` — plak-en-importeer flow voor data uit het oude
-  bestand (zie hieronder)
 
 ## Pagina's (8 sept 2026: teruggebracht naar 2)
 
@@ -99,16 +97,6 @@ taken, zonder ooit status/voortgang te overschrijven. Om te verversen:
 vraag Claude de 5 Notion-pagina's opnieuw op te halen en de array +
 `NOTION_LAST_SYNCED` bij te werken. Geen live browser-koppeling met
 Notion — dit blijft een door Claude getriggerde, handmatige sync.
-
-## Oude data overzetten
-
-Omdat dit een ander bestand/andere map is dan het oorspronkelijke
-`flo-dashboard.html` in Downloads, komt localStorage daarvan niet
-automatisch mee (browsers scopen localStorage per exacte
-bestand/origin). Het oude bestand heeft een **"Export data"**-knop
-(kopieert de huidige taken als JSON naar het klembord) — plak die JSON
-in de import-balk die bovenaan dit dashboard verschijnt totdat je 'm
-wegklikt of eenmaal gebruikt.
 
 ## Wat Floris hierna eventueel wil
 
