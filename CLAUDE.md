@@ -74,11 +74,13 @@ account/login voor hemzelf, wel 2 losse serverless functions):
   **nog niet gebeurd, wacht op de publieke iCloud-link van Floris**
   (Apple Agenda → agenda delen → "Openbare agenda" aan → link kopiëren,
   `webcal://` vervangen door `https://`).
-- **`api/quotes.js`**: haalt koersen op bij Twelve Data voor de 4 gevolgde
-  instrumenten. Env var `TWELVE_DATA_API_KEY` moet gezet worden in Vercel —
-  **nog niet gebeurd, wacht op een gratis API-key van Floris** (twelvedata.com).
-  Tickers (SEC0:XETR, IS3N:XETR, SNDK:NASDAQ, VUAA:XETR) zijn geverifieerd
-  tegen Twelve Data's symbol-search endpoint (8 sept 2026).
+- **`api/quotes.js`**: haalt koersen op via Yahoo Finance's publieke
+  (niet-officiële) chart-endpoint, **live en werkend, geen API-key nodig**.
+  Eerst geprobeerd met Twelve Data, maar hun gratis tier dekt geen Xetra
+  (de 3 Europese UCITS ETF's gaven een "upgrade to Grow/Venture"-fout) —
+  Yahoo's endpoint dekt alle 4 tickers (SEC0.DE, IS3N.DE, VUAA.DE, SNDK)
+  gratis. Kanttekening: dit is geen officiële/gedocumenteerde API, kan in
+  theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
 - Frontend (`section-markets.js`, `section-agenda.js`) doet al een `fetch("/api/...")`
   met stille fallback — werkt dus al correct lokaal (toont placeholders/alleen
   handmatige data) en pakt de echte data vanzelf op zodra bovenstaande 2
