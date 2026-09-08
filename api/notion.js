@@ -27,7 +27,8 @@ var BLOB_PAGE_IDS = {
   kanban: "3d5b6cf8f8be8177a14ee74f07a4d799",   // "Kanban Data" — Productivity System
   health: "3d5b6cf8f8be812d913ad581287eff11",   // "Health Log Data"
   financial: "3d5b6cf8f8be816691a9c8eeec5cc20d", // "Financial Data"
-  identity: "3d5b6cf8f8be8156a6c2d16e7b67738b"   // "Identity Data"
+  identity: "3d5b6cf8f8be8156a6c2d16e7b67738b",  // "Identity Data"
+  coach: "3d5b6cf8f8be816aaa84cc0dafc6afcb"      // "Coach Data" — AI-coach-gesprekken (Health + Identity)
   // "suerte" (Suerte Clients Data) is verwijderd — Clients-feature is
   // weggehaald uit de UI (8 sept 2026), de Notion-pagina zelf staat nog
   // ongebruikt in Notion maar wordt niet meer aangesproken.

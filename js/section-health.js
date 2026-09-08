@@ -1,6 +1,7 @@
 import { loadArray, saveArray } from "./store.js";
 import { renderBars } from "./barChart.js";
 import * as worksession from "./section-worksession.js";
+import * as coach from "./coach.js";
 
 var STORAGE_KEY = "flo.health_log";
 var container = null;
@@ -49,6 +50,44 @@ export async function init(rootEl) {
   } catch (e) {
     // geen backend beschikbaar — blijft bij de lokale versie
   }
+
+  await coach.ensureLoaded();
+  maybeTriggerCoach();
+}
+
+// ---------- AI-coach: patroon-detectie + gesprek ----------
+// Kijkt naar de laatste 7 dagen en geeft een korte Nederlandse omschrijving
+// terug van het eerste patroon dat opvalt, of null als er niets opvalt.
+// Puur signaal-detectie (goedkoop, geen API-call) — de daadwerkelijke
+// "deep research"-analyse gebeurt pas als hier iets uitkomt.
+function detectPattern() {
+  var recent = entriesInLastDays(7);
+  if (recent.length < 3) return null;
+  var badMood = recent.filter(function (e) { return e.mood === "Matig" || e.mood === "Slecht"; }).length;
+  if (badMood >= 3) return "vaker een matige/slechte mood deze week (" + badMood + "x)";
+  var lowEnergy = recent.filter(function (e) { return e.energy != null && e.energy <= 4; }).length;
+  if (lowEnergy >= 3) return "herhaaldelijk lage energie deze week (" + lowEnergy + "x ≤ 4)";
+  var lowProd = recent.filter(function (e) { return e.productivity != null && e.productivity <= 4; }).length;
+  if (lowProd >= 3) return "herhaaldelijk lage productiviteit deze week (" + lowProd + "x ≤ 4)";
+  var keywords = ["hoofdpijn", "slecht geslapen", "moe", "afspraak", "te laat"];
+  var hits = {};
+  recent.forEach(function (e) {
+    var note = (e.note || "").toLowerCase();
+    keywords.forEach(function (k) { if (note.indexOf(k) !== -1) hits[k] = (hits[k] || 0) + 1; });
+  });
+  var hit = Object.keys(hits).find(function (k) { return hits[k] >= 2; });
+  if (hit) return "'" + hit + "' komt vaker terug in je notities deze week (" + hits[hit] + "x)";
+  return null;
+}
+
+async function maybeTriggerCoach() {
+  var thread = coach.getThread("health");
+  if (Date.now() - (thread.lastAutoMessageAt || 0) < 3 * 24 * 60 * 60 * 1000) return; // max 1x per 3 dagen
+  var pattern = detectPattern();
+  if (!pattern) return;
+  thread.lastAutoMessageAt = Date.now();
+  await coach.askCoach("health", "health", { entries: entriesInLastDays(14) }, pattern);
+  render();
 }
 
 function getEntry(date) {
@@ -200,6 +239,12 @@ function render() {
   html += '<div class="home-line"><span>Piekdag energie</span><span class="deadline">' + (peakEnergyDay ? esc(peakEnergyDay.date) + " (" + peakEnergyDay.energy + ")" : "—") + '</span></div>';
   html += "</div>";
 
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Berichten</div>';
+  html += coach.renderChatThread("health");
+  html += '<div class="chat-input-row" style="margin-top:10px;"><input class="field" id="health-chat-input" placeholder="Schrijf iets over hoe het gaat…"><button class="new-task-btn" id="health-chat-send">Versturen</button></div>';
+  html += '<button class="archive-nav" id="health-chat-analyze" style="margin-top:8px;">Analyseer nu</button>';
+  html += "</div>";
+
   html += "</div>";
 
   container.innerHTML = html;
@@ -220,6 +265,24 @@ function attachEvents() {
         note: app.querySelector("#hl-note").value
       });
       render();
+    });
+  }
+  var chatSendBtn = app.querySelector("#health-chat-send");
+  if (chatSendBtn) {
+    chatSendBtn.addEventListener("click", function () {
+      var input = app.querySelector("#health-chat-input");
+      var v = input.value.trim();
+      if (!v) return;
+      input.value = "";
+      coach.addMessage("health", "user", v);
+      render();
+      coach.askCoach("health", "health", { entries: entriesInLastDays(14) }, null).then(render);
+    });
+  }
+  var chatAnalyzeBtn = app.querySelector("#health-chat-analyze");
+  if (chatAnalyzeBtn) {
+    chatAnalyzeBtn.addEventListener("click", function () {
+      coach.askCoach("health", "health", { entries: entriesInLastDays(14) }, "handmatige analyse aangevraagd").then(render);
     });
   }
 }

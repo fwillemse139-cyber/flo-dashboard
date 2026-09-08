@@ -5,6 +5,8 @@ var STORAGE_KEY = "flo.suerte_financial";
 var container = null;
 var financial = { transactions: [], income: [] };
 var notionAvailable = { financial: false };
+var uploadStatus = "";
+var uploadDebug = "";
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -83,26 +85,60 @@ async function extractLines(file) {
   return lines;
 }
 
-var MONTHS_RE = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*";
-var LINE_RE = new RegExp("(\\d{1,2}\\s+" + MONTHS_RE + "\\s+\\d{4})\\s+(.+?)\\s+([-+]?\\d[\\d.,]*\\.\\d{2})\\s*(EUR|USD|GBP)?", "i");
+// Datum kan in allerlei vormen voorkomen afhankelijk van bank/locale:
+// "24 Jan 2024" (Engels), "24 januari 2024" / "24 jan. 2024" (Nederlands),
+// "24-01-2024" / "24/01/2024" (NL-numeriek), "2024-01-24" (ISO).
+var MONTHS_EN = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
+var MONTHS_NL = "jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec";
+var DATE_PATTERN = "(\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{4}|\\d{1,2}\\s+(?:" + MONTHS_EN + "|" + MONTHS_NL + ")[a-z]*\\.?\\s+\\d{4})";
+// Bedrag: sta zowel komma- als punt-decimalen toe ("45,30" NL of "45.30"
+// EN), met optioneel duizendtal-scheidingsteken ("1.234,56"/"1,234.56").
+var AMOUNT_PATTERN = "([-+]?\\d[\\d.,]*\\d|[-+]?\\d)";
+var LINE_RE = new RegExp(DATE_PATTERN + "\\s+(.+?)\\s+" + AMOUNT_PATTERN + "\\s*(EUR|USD|GBP|€|\\$|£)?\\s*$", "i");
+
+var MONTH_INDEX = { jan: 0, feb: 1, mrt: 2, mar: 2, apr: 3, mei: 4, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, okt: 9, oct: 9, nov: 10, dec: 11 };
+
+// Zet allerlei datumnotaties om naar ISO YYYY-MM-DD, zodat transacties uit
+// PDF's van willekeurig welk jaar/bank op dezelfde manier gesorteerd/
+// gegroepeerd kunnen worden als handmatige entries (die al ISO zijn).
+function toIsoDate(str) {
+  str = String(str).trim();
+  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return str;
+  m = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (m) return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+  m = str.match(/^(\d{1,2})\s+([a-zé]+)\.?\s+(\d{4})$/i);
+  if (m) {
+    var monthIdx = MONTH_INDEX[m[2].toLowerCase().slice(0, 3)];
+    if (monthIdx != null) return m[3] + "-" + String(monthIdx + 1).padStart(2, "0") + "-" + m[1].padStart(2, "0");
+  }
+  var d = new Date(str);
+  return isNaN(d.getTime()) ? str : (d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"));
+}
+
+// Zet een bedrag-string om naar een getal, ongeacht of komma of punt de
+// decimaalscheiding is (bepaald door te kijken welke van de twee het
+// laatst voorkomt — "1.234,56" -> komma is decimaal, "1,234.56" -> punt).
+function parseAmount(str) {
+  str = String(str).trim();
+  var lastComma = str.lastIndexOf(",");
+  var lastDot = str.lastIndexOf(".");
+  if (lastComma > lastDot) {
+    str = str.replace(/\./g, "").replace(",", ".");
+  } else if (lastDot > lastComma) {
+    str = str.replace(/,/g, "");
+  } else {
+    str = str.replace(",", ".");
+  }
+  return parseFloat(str);
+}
 
 function parseLine(line) {
   var m = line.match(LINE_RE);
   if (!m) return null;
-  var amountStr = m[3].replace(/,/g, "");
-  var amount = parseFloat(amountStr);
+  var amount = parseAmount(m[3]);
   if (isNaN(amount)) return null;
-  return { date: toIsoDate(m[1]), description: m[2].trim(), amount: amount, currency: m[4] || "EUR" };
-}
-
-// Zet "24 Jan 2024" (of iets anders wat Date() begrijpt) om naar ISO
-// YYYY-MM-DD, zodat transacties uit PDF's van willekeurig welk jaar op
-// dezelfde manier gesorteerd/gegroepeerd kunnen worden als handmatige
-// entries (die al ISO zijn).
-function toIsoDate(str) {
-  var d = new Date(str);
-  if (isNaN(d.getTime())) return str;
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  return { date: toIsoDate(m[1]), description: m[2].trim(), amount: amount, currency: (m[4] || "EUR").toUpperCase().replace("€", "EUR").replace("$", "USD").replace("£", "GBP") };
 }
 
 // Best-effort parser voor bestaande, nog niet genormaliseerde datums
@@ -143,12 +179,14 @@ async function handleFileUploads(files) {
   var seen = {};
   financial.transactions.forEach(function (t) { seen[txFingerprint(t)] = true; });
   var totalAdded = 0, totalSkipped = 0, failed = [];
+  var debugLines = [];
   for (var i = 0; i < files.length; i++) {
     var file = files[i];
     if (statusEl) statusEl.textContent = "Bezig met bestand " + (i + 1) + "/" + files.length + " (" + file.name + ")…";
     try {
       var lines = await extractLines(file);
       var found = lines.map(parseLine).filter(function (x) { return x; });
+      if (found.length === 0) debugLines = debugLines.concat(lines.slice(0, 25));
       found.forEach(function (t) {
         var fp = txFingerprint(t);
         if (seen[fp]) { totalSkipped++; return; }
@@ -168,9 +206,11 @@ async function handleFileUploads(files) {
     }
   }
   persistFinancial();
-  var msg = totalAdded + " nieuwe transacties toegevoegd, " + totalSkipped + " duplicaten overgeslagen.";
-  if (failed.length > 0) msg += " Kon niet uitlezen: " + failed.join(", ") + ".";
-  if (statusEl) statusEl.textContent = msg;
+  uploadStatus = totalAdded + " nieuwe transacties toegevoegd, " + totalSkipped + " duplicaten overgeslagen.";
+  if (failed.length > 0) uploadStatus += " Kon niet uitlezen: " + failed.join(", ") + ".";
+  uploadDebug = (totalAdded === 0 && debugLines.length > 0)
+    ? "Geen enkele regel herkend — ruwe tekst uit de PDF (eerste regels), stuur dit door zodat het patroon verfijnd kan worden:\n" + debugLines.join("\n")
+    : "";
   render();
 }
 
@@ -304,7 +344,10 @@ function render() {
   html += '<div class="home-card"><div class="home-card-title">Bank-statements uploaden</div>';
   html += '<div class="upload-drop" id="fin-upload-drop">Klik om PDF(‘s) te kiezen — meerdere bestanden en meerdere jaren tegelijk mag</div>';
   html += '<input type="file" id="fin-upload-input" accept="application/pdf" multiple style="display:none;">';
-  html += '<div id="fin-upload-status" style="font-size:11.5px;color:var(--muted);margin-top:8px;"></div>';
+  html += '<div id="fin-upload-status" style="font-size:11.5px;color:var(--muted);margin-top:8px;">' + esc(uploadStatus) + '</div>';
+  if (uploadDebug) {
+    html += '<pre style="font-size:10.5px;color:var(--muted);margin-top:8px;white-space:pre-wrap;max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;">' + esc(uploadDebug) + '</pre>';
+  }
   html += '<div class="tagline" style="margin-top:8px;">Best-effort uitlezen — controleer de gevonden transacties, pas gerust handmatig aan. Duplicaten (zelfde datum/omschrijving/bedrag) worden automatisch overgeslagen, dus je kan gerust dezelfde periode nog eens uploaden.</div>';
   html += "</div>";
 

@@ -176,11 +176,18 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
     "Overig"). Dubbele transacties (zelfde datum+omschrijving+bedrag,
     `txFingerprint()`) worden bij upload automatisch overgeslagen, dus
     dezelfde periode nog eens uploaden of overlappende jaaroverzichten
-    geeft geen dubbele boekingen. **Ongetest tegen een echt bank-PDF-
-    bestand** — dit is best-effort tekstherkenning, de kolom-uitlijning
-    van een PDF kan onvoorspelbaar zijn. Vraag Floris om een echt bestand
-    te proberen en meld wat er misgaat, dan verfijn ik de regex.
-    Handmatig een transactie toevoegen werkt sowieso altijd als fallback.
+    geeft geen dubbele boekingen. Handmatig een transactie toevoegen werkt
+    sowieso altijd als fallback.
+    - **Parser herzien (8 sept 2026)**: eerste versie herkende alleen
+      Engelse maandnamen + punt-decimalen, wat waarschijnlijk de reden was
+      dat Florens eigen bank-PDF's niks opleverden. `DATE_PATTERN`
+      herkent nu ook Nederlandse maandnamen (`mrt`/`mei`/`okt`/etc.) en
+      numerieke datums (`24-01-2024`/`24/01/2024`); `parseAmount()`
+      herkent zowel komma- als punt-decimalen (kijkt welke van de twee
+      het laatst in de string staat). Als een bestand nul transacties
+      oplevert, toont de upload-kaart nu de eerste ~25 ruwe tekstregels
+      die pdf.js eruit haalde (`uploadDebug`) — gebruik dat om het patroon
+      verder te verfijnen i.p.v. blind te gokken.
     Analytics (allemaal staafdiagrammen via het gedeelde `js/barChart.js`):
     grootste uitgavecategorieën/inkomstenbronnen all-time, uitgaven per
     jaar, uitgaven per maand (laatste 12 mnd), grootste categorieën
@@ -221,6 +228,66 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**.
   al geladen is) en klikken erop navigeert naar die pagina
   (`navigateTo`-callback, doorgegeven van `js/main.js` naar
   `section-home.js`'s `init(rootEl, navigateTo)`).
+
+## AI-coach: Health-patronen + Identity-begeleiding (8 sept 2026)
+
+Op verzoek van Floris: niet alleen loggen/afvinken, maar dat de app actief
+meedenkt — bij Health via patroon-detectie ("waarom slaap ik de laatste
+tijd vaker slecht"), bij Identity door te helpen **hoe** hij naar zijn
+doelen toewerkt (niet alleen afvinken) inclusief een dagelijkse ochtend-/
+middag-/avond-check-in. Dit vereist een echte LLM-call vanuit de live app
+(niet Claude Code, maar een losse Anthropic API-key + bijbehorende kosten
+per gebruik) — expliciet met Floris besproken en gekozen boven een gratis
+regelgebaseerd alternatief.
+
+- **`api/coach.js`**: Vercel serverless function, proxy naar Anthropic's
+  Messages API (`model: "claude-sonnet-5"`). Stateless — de client stuurt
+  bij elke aanvraag de relevante context (health-entries, of identity-
+  statement/traits/goals/open taken) + de laatste ~20 berichten van het
+  gesprek mee; deze functie kiest op basis van `promptKey` de juiste
+  system-prompt (`health` / `identity` / `identity-morning` /
+  `identity-midday` / `identity-evening`) en geeft alleen de volgende
+  coach-reactie terug.
+  - **Eenmalige setup (Floris, nog te doen)**: maak een API-key op
+    https://console.anthropic.com/settings/keys (los account/losse
+    facturering t.o.v. een Claude.ai-abonnement — betaalt per API-call,
+    dus dit brengt reële, doorlopende kosten met zich mee) en zet 'm als
+    env var `ANTHROPIC_API_KEY` in Vercel (Project Settings → Environment
+    Variables), zelfde plek als `NOTION_TOKEN`. Zonder deze key geeft
+    `/api/coach` een 500 met duidelijke foutmelding, en toont de chat-UI
+    nette fallback-berichten i.p.v. te crashen.
+- **`js/coach.js`**: gedeelde client — één Notion-blob (`?target=coach`,
+  pagina "Coach Data") met per "thread" (`health`, `identity`) een array
+  berichten + `lastAutoMessageAt`/`lastCheckins`. Exporteert `askCoach
+  (threadKey, promptKey, context, trigger)`, `addMessage`,
+  `renderChatThread` (gedeelde chat-bubbel-HTML) en de check-in-helpers.
+- **Health** (`js/section-health.js`): `detectPattern()` kijkt naar de
+  laatste 7 dagen (geen API-call, puur lokale heuristiek) — 3x
+  matige/slechte mood, 3x lage energie/productiviteit (≤4), of een
+  trefwoord ("hoofdpijn"/"slecht geslapen"/"moe"/"afspraak"/"te laat") dat
+  2x terugkomt in de notities. Bij een treffer (max 1x per 3 dagen) stuurt
+  `maybeTriggerCoach()` de laatste 14 dagen naar de coach, die het patroon
+  benoemt en één gerichte vraag stelt. Een "Berichten"-kaart op de
+  Health-pagina toont het hele gesprek + een open chat-input + een
+  "Analyseer nu"-knop voor een handmatige analyse.
+- **Identity** (`js/section-identity.js`): "Berichten"-kaart met een
+  "Deep research doelen"-knop (`promptKey: "identity"`, kijkt naar
+  statement/eigenschappen+bewijs/open doelen/openstaande Productivity-
+  taken) + open chat. **Dagelijkse check-ins**: `checkDailyCheckins()`
+  (self-contained, leest direct uit `localStorage` zodat het ook werkt
+  zonder dat Identity deze sessie al bezocht is) checkt het tijdstip —
+  05-11u ochtend (dagplan o.b.v. doelen/taken), 11-17u midden-check-in,
+  17u+ avond-reflectie — en verstuurt max 1x per moment per dag. Wordt
+  aangeroepen vanuit **`section-home.js`'s `init()`**, dus het staat al
+  klaar zodra Floris het dashboard opent (niet pas na navigeren naar
+  Identity) en verschijnt ook als preview in een "Coach"-kaart op Home.
+  **Belangrijke kanttekening**: dit is geen echte push-notificatie naar
+  de telefoon — het bericht wordt pas gegenereerd zodra de app daadwerkelijk
+  geopend wordt in het bijbehorende tijdvak. Een losse
+  service-worker/push-opzet zou dat wel kunnen, maar is een veel grotere
+  stap en is (nog) niet gebouwd.
+- **CSS**: `.chat-thread`/`.chat-msg`/`.chat-input-row` in
+  `css/dashboard.css`, gedeeld door Health en Identity.
 
 ## Voorkeuren
 

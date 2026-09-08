@@ -189,3 +189,11 @@ a{color:inherit;}
 .bar-track{flex:1;background:var(--surface-hover);border-radius:4px;height:8px;overflow:hidden;}
 .bar-fill{height:100%;background:var(--primary);border-radius:4px;}
 .bar-value{width:70px;text-align:right;flex-shrink:0;color:var(--text);font-weight:600;}
+
+/* ---------- AI-coach chat (Health + Identity) ---------- */
+.chat-thread{display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;}
+.chat-msg{max-width:80%;padding:10px 13px;border-radius:10px;font-size:13px;line-height:1.45;}
+.chat-msg.assistant{background:var(--surface-hover);border:1px solid var(--border-soft);align-self:flex-start;}
+.chat-msg.user{background:var(--primary);color:var(--primary-foreground);align-self:flex-end;}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row .field{flex:1;}
