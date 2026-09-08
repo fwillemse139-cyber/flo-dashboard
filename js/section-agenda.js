@@ -3,7 +3,6 @@ import { loadArray, saveArray, uid } from "./store.js";
 var STORAGE_KEY = "flo.agenda_events";
 var container = null;
 var items = [];
-var notionEvents = [];
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -28,25 +27,6 @@ export function init(rootEl) {
   items = loadArray(STORAGE_KEY);
   sortItems();
   render();
-  refreshNotionEvents();
-}
-
-// /api/notion?target=agenda bestaat alleen op Vercel (serverless function,
-// leest Floris' Notion "Daily Tasks"-database, items met een "Geplande
-// tijd") — lokaal draaien zonder Vercel geeft gewoon een fout, dan blijft
-// alleen de handmatige agenda over.
-async function refreshNotionEvents() {
-  try {
-    var res = await fetch("/api/notion?target=agenda");
-    if (!res.ok) return;
-    var data = await res.json();
-    notionEvents = (data.events || []).map(function (e) {
-      return { id: "notion-" + e.startsAt + "-" + e.title, title: e.title, startsAt: e.startsAt, allDay: e.allDay, note: "", fromNotion: true };
-    });
-    render();
-  } catch (e) {
-    // geen backend beschikbaar (bv. lokaal testen) — stil negeren
-  }
 }
 
 function addEvent(title, startsAtIso, allDay, note) {
@@ -66,9 +46,7 @@ function removeEvent(id) {
 function getVisibleUpcoming() {
   var now = Date.now();
   var in2Days = now + 2 * 24 * 60 * 60 * 1000;
-  var combined = items.concat(notionEvents);
-  combined.sort(function (a, b) { return new Date(a.startsAt) - new Date(b.startsAt); });
-  var upcoming = combined.filter(function (e) { return new Date(e.startsAt).getTime() >= now; });
+  var upcoming = items.filter(function (e) { return new Date(e.startsAt).getTime() >= now; });
   var within2Days = upcoming.filter(function (e) { return new Date(e.startsAt).getTime() <= in2Days; });
   return within2Days.length > 5 ? within2Days : upcoming.slice(0, 5);
 }
@@ -81,9 +59,9 @@ function render() {
   html += '<div class="flat-list">';
   upcoming.forEach(function (e) {
     html += '<div class="flat-row">';
-    html += '<div><div class="event-title">' + esc(e.title) + (e.fromNotion ? ' <span class="tagline" style="display:inline;">· Notion</span>' : '') + '</div>';
+    html += '<div><div class="event-title">' + esc(e.title) + '</div>';
     html += '<div class="deadline">' + formatDateTime(e.startsAt, e.allDay) + (e.note ? " · " + esc(e.note) : "") + '</div></div>';
-    html += e.fromNotion ? '' : '<button class="close-btn" data-action="remove" data-id="' + e.id + '">×</button>';
+    html += '<button class="close-btn" data-action="remove" data-id="' + e.id + '">×</button>';
     html += '</div>';
   });
   if (upcoming.length === 0) html += '<div class="empty-drop">Geen aankomende events</div>';

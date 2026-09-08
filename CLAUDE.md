@@ -72,23 +72,18 @@ Project staat live op `https://flo-dashboard-fwillemse139-cybers-projects.vercel
   Yahoo's endpoint dekt alle 4 tickers (SEC0.DE, IS3N.DE, VUAA.DE, SNDK)
   gratis. Kanttekening: dit is geen officiële/gedocumenteerde API, kan in
   theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
-- **`api/notion.js`** (3 targets):
-  - `?target=notes` / `?target=tasks`: lezen/schrijven in de "Notes"- en
-    "Tasks"-Notion-pagina's onder Personal (zie Notion-koppeling hieronder).
-  - `?target=agenda` (read-only): leest Floris' Notion **"Daily Tasks"**-
-    database (onder Productivity) — items met een ingevulde "Geplande tijd"
-    worden agenda-events. Dit vervangt de eerder geplande Apple Agenda-
-    koppeling: die database sync't namelijk al naar Apple Agenda als
-    geabonneerde kalender, en een geabonneerde (niet-zelf-beheerde) kalender
-    kan in Apple niet alsnog "openbaar" gemaakt worden — dus rechtstreeks
-    naar de Notion-bron in plaats van via Apple.
-  - Env var `NOTION_TOKEN` (interne Notion-integratie) moet in Vercel gezet
-    zijn, én de integratie moet zijn toegevoegd aan de "Notes"-pagina, de
-    "Tasks"-pagina, én de "Daily Tasks"-database (Notion → "..." menu →
-    Connections, op elk van de drie apart).
-- Frontend (`section-markets.js`, `section-agenda.js`, `section-notes.js`,
-  `section-tasks.js`) doet overal `fetch("/api/...")` met stille fallback —
-  werkt dus ook correct lokaal zonder backend (localStorage/placeholders).
+- **`api/notion.js`** (2 targets): `?target=notes` / `?target=tasks` —
+  lezen/schrijven in de "Notes"- en "Tasks"-Notion-pagina's onder Personal.
+  **Live en werkend.** Env var `NOTION_TOKEN` staat in Vercel, en de
+  integratie ("Flo's Dashboard") is toegevoegd aan beide pagina's
+  (Notion → "..." menu → Connections).
+  - Een agenda-koppeling met de Notion "Daily Tasks"-database (onder
+    Productivity) is kort geprobeerd en weer teruggedraaid — Floris wil
+    die database niet gebruiken voor de dashboard-agenda. Agenda blijft
+    dus puur handmatig (localStorage), geen live kalenderbron.
+- Frontend (`section-markets.js`, `section-notes.js`, `section-tasks.js`)
+  doet `fetch("/api/...")` met stille fallback — werkt dus ook correct
+  lokaal zonder backend (localStorage/placeholders).
 
 ## Notion-sync (Academic-taken binnen Productivity System)
 

@@ -142,6 +142,9 @@ a{color:inherit;}
 .note-remove{position:absolute;top:6px;right:6px;}
 
 /* ---------- Connected Tools ---------- */
+.tools-group{margin-bottom:18px;}
+.tools-group:last-child{margin-bottom:0;}
+.tools-group-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:10px;}
 .tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
 .tool-card{display:block;background:var(--surface);border:1px solid var(--border-soft);border-radius:9px;padding:16px;text-decoration:none;transition:border-color .12s;}
 .tool-card:hover{border-color:var(--muted-soft);}
