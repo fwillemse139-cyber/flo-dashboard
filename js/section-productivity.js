@@ -1,4 +1,5 @@
 import { loadArray, saveArray, uid } from "./store.js";
+import { parseDeadline } from "./deadlineParser.js";
 
 var STORAGE_KEY = "flo.kanban_tasks";
 var ARCHIVE_AFTER_DAYS = 14;
@@ -208,9 +209,26 @@ function render() {
     html += '</div>';
   }
 
+  var now = new Date();
+  // Sorteert op deadline (eerst opkomende bovenaan) — over vakken/subjects
+  // heen, want filteren op subject kan altijd nog via de chips hierboven.
+  // Taken zonder herkenbare datum ("tbd") blijven onderaan, op oorspronkelijke
+  // volgorde, i.p.v. een misleidende positie te krijgen.
+  function sortByDeadline(list) {
+    return list
+      .map(function (t, i) { return { t: t, i: i, d: parseDeadline(t.deadline, now) }; })
+      .sort(function (a, b) {
+        if (a.d && b.d) return a.d - b.d;
+        if (a.d && !b.d) return -1;
+        if (!a.d && b.d) return 1;
+        return a.i - b.i;
+      })
+      .map(function (x) { return x.t; });
+  }
+
   html += '<div class="board">';
   columns.forEach(function (col) {
-    var colTasks = visibleTasks.filter(function (t) { return t.status === col.id; });
+    var colTasks = sortByDeadline(visibleTasks.filter(function (t) { return t.status === col.id; }));
     html += '<div class="column" data-drop-status="' + col.id + '">';
     html += '<div class="col-header"><div style="display:flex;align-items:center;gap:8px;">';
     html += '<span class="col-dot" style="background:' + colDotColor(col.id) + '"></span>';
