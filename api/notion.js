@@ -1,22 +1,29 @@
 // Vercel serverless function — leest/schrijft rechtstreeks in de "Notes" en
-// "Tasks" Notion-pagina's onder Personal, zodat die twee widgets in het
-// dashboard Notion als opslag gebruiken i.p.v. alleen localStorage.
+// "Tasks" Notion-pagina's onder Personal (dashboard-opslag), en leest
+// (read-only) de "Daily Tasks"-database uit de Productivity-pagina voor
+// de Agenda-widget — dit is dezelfde database die Floris al als
+// geabonneerde agenda in Apple Agenda had (via Notion's eigen iCal-sync),
+// maar die kon niet los "openbaar" gemaakt worden. Hier gaan we rechtstreeks
+// naar de bron via de Notion API.
 //
 // Eenmalige setup (Floris):
 //   1. Maak een interne integratie op https://www.notion.so/profile/integrations
 //      (of notion.so/my-integrations) → kopieer de "Internal Integration Secret".
 //   2. Zet 'm als env var NOTION_TOKEN in Vercel.
-//   3. Open de "Notes"-pagina en de "Tasks"-pagina in Notion → "..." menu
-//      rechtsboven → Connections → voeg de zojuist gemaakte integratie toe.
-//      (Zonder deze stap krijgt de integratie een 403/404 op deze pagina's.)
+//   3. Open de "Notes"-pagina, de "Tasks"-pagina, én de "Daily Tasks"-database
+//      (onder Productivity) in Notion → "..." menu rechtsboven → Connections
+//      → voeg de zojuist gemaakte integratie toe aan alle drie.
+//      (Zonder deze stap krijgt de integratie een 403/404.)
 //
 // Notes-pagina: elke notitie = één paragraph-block.
 // Tasks-pagina: elke taak = één to_do-block (met checkbox-status).
+// Agenda: leest "Daily Tasks"-database, items met een "Geplande tijd".
 var NOTION_VERSION = "2022-06-28";
 var PAGE_IDS = {
   notes: "3d5b6cf8f8be80d99e2edbe77602b590",
   tasks: "27eb6cf8f8be8048b2b8f69d731807bc"
 };
+var AGENDA_DATABASE_ID = "13c79dd716294889ad16a6757bb5b6c7";
 
 function notionFetch(token, path, options) {
   return fetch("https://api.notion.com/v1" + path, Object.assign({
@@ -75,14 +82,49 @@ async function deleteItem(token, blockId) {
   return { ok: true };
 }
 
+// Read-only: haalt "Daily Tasks"-items op met een ingevulde "Geplande tijd"
+// en geeft ze terug in hetzelfde vorm als de agenda-events (title/startsAt/
+// allDay), zodat ze in de bestaande Agenda-widget passen.
+async function listAgenda(token) {
+  var res = await notionFetch(token, "/databases/" + AGENDA_DATABASE_ID + "/query", {
+    method: "POST",
+    body: JSON.stringify({
+      filter: { property: "Geplande tijd", date: { is_not_empty: true } },
+      sorts: [{ property: "Geplande tijd", direction: "ascending" }],
+      page_size: 100
+    })
+  });
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Notion agenda query failed");
+  return (data.results || [])
+    .map(function (page) {
+      var props = page.properties;
+      var titleProp = props["Taak"] && props["Taak"].title;
+      var dateProp = props["Geplande tijd"] && props["Geplande tijd"].date;
+      if (!dateProp || !dateProp.start) return null;
+      return {
+        title: plainText(titleProp),
+        startsAt: dateProp.start,
+        allDay: dateProp.start.indexOf("T") === -1
+      };
+    })
+    .filter(function (e) { return e; });
+}
+
 export default async function handler(req, res) {
   var token = process.env.NOTION_TOKEN;
   if (!token) { res.status(500).json({ error: "NOTION_TOKEN ontbreekt in Vercel environment variables" }); return; }
 
   var target = (req.query && req.query.target) || (new URL(req.url, "http://x").searchParams.get("target"));
-  if (target !== "notes" && target !== "tasks") { res.status(400).json({ error: "target moet 'notes' of 'tasks' zijn" }); return; }
+  if (target !== "notes" && target !== "tasks" && target !== "agenda") { res.status(400).json({ error: "target moet 'notes', 'tasks' of 'agenda' zijn" }); return; }
 
   try {
+    if (target === "agenda") {
+      if (req.method !== "GET") { res.status(405).json({ error: "agenda is read-only" }); return; }
+      res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
+      res.status(200).json({ events: await listAgenda(token) });
+      return;
+    }
     if (req.method === "GET") {
       res.status(200).json({ items: await listItems(token, target) });
     } else if (req.method === "POST") {
