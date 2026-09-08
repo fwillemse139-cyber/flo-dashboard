@@ -156,6 +156,32 @@ Nav is nu **Home / Productivity System / Health / Suerte**.
 - **Niet gebouwd, bewust**: hoeveel Claude-gebruik (quota/reset-tijd) er
   nog is — daar bestaat geen door mij uitleesbare API/databron voor.
 
+## Identity en Home-samenvattingen (8 sept 2026, nieuwe pagina + Home-uitbreiding)
+
+Nav is nu **Home / Productivity System / Health / Suerte / Identity**.
+
+- **`js/section-identity.js`** (`?target=identity` in `api/notion.js`, zelfde
+  JSON-blob-patroon): identity-statement ("Wie wil Floris zijn?", vrije
+  tekst), eigenschappen-lijst met per eigenschap een bewijs-log (datum +
+  notitie, bv. "3 dagen achter elkaar studie gedaan"), en een doelenlijst
+  in drie kolommen (Short/Mid/Long term, elk met eigen add-knop en
+  done-toggle). Short en Long term zijn geseed met Floris' eigen lijst
+  (`seedGoals()` in dat bestand — alleen bij een lege state, dus een
+  bestaande Notion-blob overschrijft dit nooit); Mid term is bewust leeg
+  begonnen ("sommige zijn misschien mid term" — geen vooraf-indeling).
+- **Home-samenvattingskaarten**: naast de bestaande widgets (Deadlines/
+  Agenda/Tasks/Markets/Connected Tools) staan er nu 4 klikbare kaarten
+  onderaan Home — Productivity System (open taken per categorie), Health
+  (vandaag gelogd? + weekgemiddelden), Suerte (uitgaven/inkomsten deze
+  maand + actieve clients) en Identity (doelen behaald + aantal
+  eigenschappen). Elke kaart leest rechtstreeks uit dezelfde
+  localStorage-keys als de eigen pagina (`flo.kanban_tasks`,
+  `flo.health_log`, `flo.suerte_financial`/`flo.suerte_clients`,
+  `flo.identity` — geen aparte fetch, dus altijd in sync met wat er lokaal
+  al geladen is) en klikken erop navigeert naar die pagina
+  (`navigateTo`-callback, doorgegeven van `js/main.js` naar
+  `section-home.js`'s `init(rootEl, navigateTo)`).
+
 ## Voorkeuren
 
 - Geen emoji's in output/UI-copy.

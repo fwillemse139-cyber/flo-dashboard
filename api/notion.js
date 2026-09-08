@@ -27,7 +27,8 @@ var BLOB_PAGE_IDS = {
   kanban: "3d5b6cf8f8be8177a14ee74f07a4d799",   // "Kanban Data" — Productivity System
   health: "3d5b6cf8f8be812d913ad581287eff11",   // "Health Log Data"
   financial: "3d5b6cf8f8be816691a9c8eeec5cc20d", // "Financial Data"
-  suerte: "3d5b6cf8f8be81c39a57d3865782bed5"     // "Suerte Clients Data"
+  suerte: "3d5b6cf8f8be81c39a57d3865782bed5",    // "Suerte Clients Data"
+  identity: "3d5b6cf8f8be8156a6c2d16e7b67738b"   // "Identity Data"
 };
 
 function notionFetch(token, path, options) {
@@ -154,7 +155,8 @@ export default async function handler(req, res) {
       return;
     }
     if (blobPageId) {
-      if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, target === "kanban" ? [] : null) }); return; }
+      var fallback = (target === "kanban" || target === "health" || target === "suerte") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
+      if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, fallback) }); return; }
       if (req.method === "PUT") { res.status(200).json(await saveBlob(token, blobPageId, (req.body || {}).data)); return; }
       res.status(405).json({ error: target + " ondersteunt alleen GET/PUT" });
       return;
