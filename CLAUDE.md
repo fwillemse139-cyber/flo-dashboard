@@ -31,14 +31,15 @@ aanpak.
   Productivity System, Connected Tools, Markets)
 - `js/marketsCore.js` — gedeelde beursuren-logica (Home en Markets gebruiken 'm allebei)
 
-## Pagina's (8 sept 2026: teruggebracht naar 2)
+## Pagina's
 
-Alleen **Home** en **Productivity System** zijn nog eigen pagina's in de
-navigatie. Agenda, Tasks, Markets en Connected Tools zijn nu uitsluitend
+Nav: **Home / Productivity System / Health / Finance / Identity**. Van de
+widgets die oorspronkelijk (8 sept 2026) hun eigen nav-item hadden zijn
+Agenda, Tasks, Werksessie, Markets en Connected Tools sindsdien uitsluitend
 widgets ÓP Home (naast/onder elkaar in een grid) — hun `section-*.js`-
-bestanden bestaan nog als losse modules met een `init(rootEl)` die in een
-willekeurige container gemonteerd kan worden, maar worden nergens anders
-meer aangeroepen dan vanuit `section-home.js`.
+bestanden bestaan als losse modules met een `init(rootEl)` die in een
+willekeurige container gemonteerd kan worden; Werksessie wordt zowel op
+Home als op Health gemount (zie hieronder).
 
 - **Home**: het hele dashboard in één oogopslag —
   - **Deadlines**: top 5 openstaande taken uit Productivity System (alle
@@ -48,8 +49,12 @@ meer aangeroepen dan vanuit `section-home.js`.
   - **Agenda**: eerstvolgende 5 events, tenzij er meer dan 5 binnen 2 dagen
     vallen (dan worden juist alle events binnen die 2 dagen getoond).
     Combineert handmatige events + Apple-agenda-events (zie hieronder).
-  - **Tasks**, **Markets**, **Connected Tools**: zelfde functionaliteit als
-    voorheen, nu als widget.
+  - **Tasks**, **Werksessie**, **Markets**, **Connected Tools**: zelfde
+    functionaliteit als op hun eigen pagina, nu als widget (Werksessie
+    staat bewust naast Tasks, zodat je 'm direct kan starten/stoppen
+    zonder naar Health te hoeven navigeren).
+  - **Samenvattingskaarten**: klikbare kaarten voor Productivity System/
+    Health/Finance/Identity, zie de sectie hieronder.
 - **Productivity System**: het oorspronkelijke kanban-systeem
   (Personal/Academic/Business), inclusief de Notion-sync voor
   Academic-taken (`NOTION_SYNC_DATA`/`mergeNotionSync()` in
@@ -129,19 +134,32 @@ vraag Claude de 5 Notion-pagina's opnieuw op te halen en de array +
 `NOTION_LAST_SYNCED` bij te werken. Geen live browser-koppeling met
 Notion — dit blijft een door Claude getriggerde, handmatige sync.
 
-## Health en Suerte (8 sept 2026, nieuwe pagina's)
+## Health en Finance (8 sept 2026, nieuwe pagina's)
 
-Nav is nu **Home / Productivity System / Health / Suerte**.
+Nav is nu **Home / Productivity System / Health / Finance / Identity**
+(de pagina heette eerst "Suerte", het bestand heet intern nog steeds
+`js/section-suerte.js` en de Notion-financial-target nog `?target=financial`
+— alleen het zichtbare kopje/nav-label is hernoemd naar "Finance", 8 sept
+2026, nadat de Clients-tracker eruit ging).
 
 - **`js/section-health.js`** (`?target=health` in `api/notion.js`, zelfde
   JSON-blob-patroon als kanban): dagelijkse check-in (mood/energie 1-10/
-  productiviteit 1-10/wektijd/notitie, één entry per dag) + werksessie-
-  tracking (start/stop-knop, telt minuten op bij de dag van vandaag) +
-  analytics (week-/maandgemiddelden, piekdag, een simpele inline-SVG
-  trendlijn over de laatste 14 dagen voor energie/productiviteit, plus
-  staafdiagrammen — via `js/barChart.js` — voor gem. energie/
-  productiviteit per maand (vaste 1-10-schaal, laatste 6 mnd, lege
-  maanden overgeslagen) en werktijd per maand in uren).
+  productiviteit 1-10/wektijd/notitie, één entry per dag) + analytics
+  (week-/maandgemiddelden, piekdag, een simpele inline-SVG trendlijn over
+  de laatste 14 dagen voor energie/productiviteit, plus staafdiagrammen —
+  via `js/barChart.js` — voor gem. energie/productiviteit per maand
+  (vaste 1-10-schaal, laatste 6 mnd, lege maanden overgeslagen) en
+  werktijd per maand in uren). De werksessie-tracking zelf zit niet meer
+  in dit bestand, zie `js/section-worksession.js` hieronder.
+- **`js/section-worksession.js`**: losse, zelfstandige start/stop-
+  werksessie-widget (schrijft naar dezelfde `flo.health_log`-storage/
+  `?target=health` als Health, dus het telt gewoon mee in Health's
+  week-/maandanalytics ongeacht vanaf waar de sessie gestart is). Gemount
+  op **twee plekken**: op Home naast de Tasks-widget (zodat je 'm meteen
+  kan aanklikken zonder eerst naar Health te navigeren — op verzoek van
+  Floris, 8 sept 2026) én op de Health-pagina zelf. Beide mounts draaien
+  onafhankelijk van elkaar (eigen 30s-tick voor de live sessieduur), maar
+  delen dezelfde `localStorage`-sleutels dus altijd in sync.
 - **`js/barChart.js`**: kleine gedeelde staafdiagram-renderer
   (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door zowel
   Suerte (financieel) als Health — voorkomt dat dezelfde bar-HTML op
@@ -170,14 +188,18 @@ Nav is nu **Home / Productivity System / Health / Suerte**.
     (`recurringCandidates()` — omschrijvingen die in 3+ losse maanden
     terugkomen, met geschat maand-/jaarbedrag; typisch abonnementen of
     terugkerende kosten die je bent vergeten).
-  - **Clients** (`?target=suerte`): simpele naam/project/status-tracker
-    (Actief/On hold/Afgerond).
+  - **Clients-tracker is verwijderd** (8 sept 2026, op verzoek van
+    Floris) — de losse naam/project/status-lijst en de bijbehorende
+    `?target=suerte`-Notion-blob ("Suerte Clients Data") worden niet meer
+    gebruikt/aangesproken. De Notion-pagina zelf bestaat nog gewoon in
+    Notion, maar `BLOB_PAGE_IDS` in `api/notion.js` verwijst er niet meer
+    naar.
 - **Niet gebouwd, bewust**: hoeveel Claude-gebruik (quota/reset-tijd) er
   nog is — daar bestaat geen door mij uitleesbare API/databron voor.
 
 ## Identity en Home-samenvattingen (8 sept 2026, nieuwe pagina + Home-uitbreiding)
 
-Nav is nu **Home / Productivity System / Health / Suerte / Identity**.
+Nav is nu **Home / Productivity System / Health / Finance / Identity**.
 
 - **`js/section-identity.js`** (`?target=identity` in `api/notion.js`, zelfde
   JSON-blob-patroon): identity-statement ("Wie wil Floris zijn?", vrije
@@ -189,13 +211,12 @@ Nav is nu **Home / Productivity System / Health / Suerte / Identity**.
   bestaande Notion-blob overschrijft dit nooit); Mid term is bewust leeg
   begonnen ("sommige zijn misschien mid term" — geen vooraf-indeling).
 - **Home-samenvattingskaarten**: naast de bestaande widgets (Deadlines/
-  Agenda/Tasks/Markets/Connected Tools) staan er nu 4 klikbare kaarten
-  onderaan Home — Productivity System (open taken per categorie), Health
-  (vandaag gelogd? + weekgemiddelden), Suerte (uitgaven/inkomsten deze
-  maand + actieve clients) en Identity (doelen behaald + aantal
-  eigenschappen). Elke kaart leest rechtstreeks uit dezelfde
-  localStorage-keys als de eigen pagina (`flo.kanban_tasks`,
-  `flo.health_log`, `flo.suerte_financial`/`flo.suerte_clients`,
+  Agenda/Tasks/Werksessie/Markets/Connected Tools) staan er nu 4 klikbare
+  kaarten onderaan Home — Productivity System (open taken per categorie),
+  Health (vandaag gelogd? + weekgemiddelden), Finance (uitgaven/inkomsten
+  deze maand) en Identity (doelen behaald + aantal eigenschappen). Elke
+  kaart leest rechtstreeks uit dezelfde localStorage-keys als de eigen
+  pagina (`flo.kanban_tasks`, `flo.health_log`, `flo.suerte_financial`,
   `flo.identity` — geen aparte fetch, dus altijd in sync met wat er lokaal
   al geladen is) en klikken erop navigeert naar die pagina
   (`navigateTo`-callback, doorgegeven van `js/main.js` naar

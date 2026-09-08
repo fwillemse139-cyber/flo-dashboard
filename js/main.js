@@ -8,7 +8,7 @@ var NAV_ITEMS = [
   { id: "home", label: "Home" },
   { id: "productivity", label: "Productivity System" },
   { id: "health", label: "Health" },
-  { id: "suerte", label: "Suerte" },
+  { id: "suerte", label: "Finance" },
   { id: "identity", label: "Identity" }
 ];
 

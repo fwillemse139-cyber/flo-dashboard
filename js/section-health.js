@@ -1,12 +1,11 @@
 import { loadArray, saveArray } from "./store.js";
 import { renderBars } from "./barChart.js";
+import * as worksession from "./section-worksession.js";
 
 var STORAGE_KEY = "flo.health_log";
-var SESSION_KEY = "flo.health_active_session";
 var container = null;
 var entries = [];
 var notionAvailable = false;
-var tickInterval = null;
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -50,9 +49,6 @@ export async function init(rootEl) {
   } catch (e) {
     // geen backend beschikbaar — blijft bij de lokale versie
   }
-
-  if (tickInterval) clearInterval(tickInterval);
-  tickInterval = setInterval(render, 30000); // houdt de live-sessieduur actueel
 }
 
 function getEntry(date) {
@@ -68,33 +64,6 @@ function upsertEntry(patch) {
     entries.push(Object.assign({ date: date, mood: "", energy: null, productivity: null, wakeTime: "", note: "", workMinutes: 0 }, patch));
   }
   persist();
-}
-
-// ---------- Tijd-tracking (werksessies) ----------
-function getActiveSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { return null; }
-}
-function setActiveSession(session) {
-  try {
-    if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    else localStorage.removeItem(SESSION_KEY);
-  } catch (e) {}
-}
-
-function startSession() {
-  setActiveSession({ startedAt: Date.now() });
-  render();
-}
-
-function stopSession() {
-  var session = getActiveSession();
-  if (!session) return;
-  var minutes = Math.round((Date.now() - session.startedAt) / 60000);
-  setActiveSession(null);
-  var date = todayStr();
-  var existing = getEntry(date);
-  var currentMinutes = existing && existing.workMinutes ? existing.workMinutes : 0;
-  upsertEntry({ workMinutes: currentMinutes + Math.max(minutes, 0) });
 }
 
 // ---------- Analytics ----------
@@ -178,7 +147,6 @@ function render() {
   if (!container) return;
   var today = todayStr();
   var todayEntry = getEntry(today) || {};
-  var session = getActiveSession();
 
   var week = entriesInLastDays(7);
   var month = entriesInLastDays(30);
@@ -202,16 +170,7 @@ function render() {
   html += '<button class="new-task-btn" id="hl-save" style="margin-top:14px;">Opslaan</button>';
   html += "</div></div>";
 
-  html += '<div class="home-card"><div class="home-card-title">Werksessie</div>';
-  if (session) {
-    var elapsedMin = Math.round((Date.now() - session.startedAt) / 60000);
-    html += '<div class="home-line"><span>Bezig sinds ' + new Date(session.startedAt).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }) + '</span><span class="deadline">' + elapsedMin + ' min</span></div>';
-    html += '<button class="new-task-btn" id="hl-stop" style="margin-top:10px;">Stop sessie</button>';
-  } else {
-    html += '<div class="home-line"><span>Vandaag totaal</span><span class="deadline">' + (todayEntry.workMinutes || 0) + ' min</span></div>';
-    html += '<button class="new-task-btn" id="hl-start" style="margin-top:10px;">Start sessie</button>';
-  }
-  html += "</div>";
+  html += '<div class="home-card"><div class="home-card-title">Werksessie</div><div id="health-w-worksession"></div></div>';
 
   html += '<div class="home-card home-card-wide"><div class="home-card-title">Trend (laatste 14 dagen)</div>';
   html += renderChart(entriesInLastDays(14));
@@ -245,6 +204,7 @@ function render() {
 
   container.innerHTML = html;
   attachEvents();
+  worksession.init(document.getElementById("health-w-worksession"));
 }
 
 function attachEvents() {
@@ -262,8 +222,4 @@ function attachEvents() {
       render();
     });
   }
-  var startBtn = app.querySelector("#hl-start");
-  if (startBtn) startBtn.addEventListener("click", startSession);
-  var stopBtn = app.querySelector("#hl-stop");
-  if (stopBtn) stopBtn.addEventListener("click", stopSession);
 }

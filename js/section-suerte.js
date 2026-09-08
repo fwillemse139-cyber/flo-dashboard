@@ -1,12 +1,10 @@
-import { loadArray, saveArray, uid } from "./store.js";
+import { uid } from "./store.js";
 import { renderBars } from "./barChart.js";
 
 var STORAGE_KEY = "flo.suerte_financial";
-var CLIENTS_KEY = "flo.suerte_clients";
 var container = null;
 var financial = { transactions: [], income: [] };
-var clients = [];
-var notionAvailable = { financial: false, suerte: false };
+var notionAvailable = { financial: false };
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -23,24 +21,12 @@ function persistFinancial() {
   }
 }
 
-function persistClients() {
-  saveArray(CLIENTS_KEY, clients);
-  if (notionAvailable.suerte) {
-    fetch("/api/notion?target=suerte", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: clients })
-    }).catch(function () {});
-  }
-}
-
 export async function init(rootEl) {
   container = rootEl;
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
     financial = raw ? JSON.parse(raw) : { transactions: [], income: [] };
   } catch (e) { financial = { transactions: [], income: [] }; }
-  clients = loadArray(CLIENTS_KEY);
   render();
 
   try {
@@ -56,22 +42,6 @@ export async function init(rootEl) {
       } else if (notionFinancial) {
         financial = notionFinancial;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(financial));
-      }
-      render();
-    }
-  } catch (e) {}
-
-  try {
-    var cRes = await fetch("/api/notion?target=suerte");
-    if (cRes.ok) {
-      var cBody = await cRes.json();
-      notionAvailable.suerte = true;
-      var notionClients = cBody.data || [];
-      if (notionClients.length === 0 && clients.length > 0) {
-        persistClients();
-      } else {
-        clients = notionClients;
-        saveArray(CLIENTS_KEY, clients);
       }
       render();
     }
@@ -216,22 +186,6 @@ function addManualTransaction(desc, amount, category) {
   render();
 }
 
-// ---------- Clients ----------
-function addClient(name, project) {
-  clients.push({ id: uid(), name: name, project: project, status: "Actief", note: "" });
-  persistClients();
-  render();
-}
-function updateClientStatus(id, status) {
-  var c = clients.find(function (x) { return x.id === id; });
-  if (c) { c.status = status; persistClients(); render(); }
-}
-function removeClient(id) {
-  clients = clients.filter(function (x) { return x.id !== id; });
-  persistClients();
-  render();
-}
-
 // ---------- Analytics ----------
 function spendByCategory() {
   var totals = {};
@@ -339,7 +293,7 @@ function render() {
   var lastYearCategories = categoryTotalsInRange(Date.now() - oneYearMs, Date.now());
   var recurring = recurringCandidates();
 
-  var html = '<div class="section-header"><h2>Suerte</h2><div class="tagline">Business tools — financiën en klanten</div></div>';
+  var html = '<div class="section-header"><h2>Finance</h2><div class="tagline">Financieel overzicht en analytics</div></div>';
   html += '<div class="home-grid">';
 
   html += '<div class="home-card"><div class="home-card-title">Financieel overzicht</div>';
@@ -398,25 +352,6 @@ function render() {
   html += '<button class="new-task-btn" id="fin-manual-add">+ Toevoegen</button>';
   html += "</div></div>";
 
-  html += '<div class="home-card home-card-wide"><div class="home-card-title">Clients</div>';
-  html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
-  html += '<input class="field" id="cl-name" placeholder="Naam klant" style="flex:1;">';
-  html += '<input class="field" id="cl-project" placeholder="Project" style="flex:1;">';
-  html += '<button class="new-task-btn" id="cl-add">+ Toevoegen</button>';
-  html += "</div>";
-  if (clients.length === 0) html += '<div class="empty-drop">Nog geen clients</div>';
-  clients.forEach(function (c) {
-    html += '<div class="flat-row"><div><div class="event-title">' + esc(c.name) + '</div><div class="deadline">' + esc(c.project || "") + '</div></div>';
-    html += '<div style="display:flex;align-items:center;gap:8px;">';
-    html += '<select class="status-select" data-action="client-status" data-id="' + c.id + '">';
-    ["Actief", "On hold", "Afgerond"].forEach(function (s) {
-      html += '<option value="' + s + '" ' + (c.status === s ? "selected" : "") + '>' + s + "</option>";
-    });
-    html += "</select>";
-    html += '<button class="close-btn" data-action="client-remove" data-id="' + c.id + '">×</button></div></div>';
-  });
-  html += "</div>";
-
   html += "</div>";
   container.innerHTML = html;
   attachEvents();
@@ -441,19 +376,4 @@ function attachEvents() {
       addManualTransaction(desc, amount, amount < 0 ? guessCategory(desc) : "Inkomen");
     });
   }
-  var clientAddBtn = app.querySelector("#cl-add");
-  if (clientAddBtn) {
-    clientAddBtn.addEventListener("click", function () {
-      var name = app.querySelector("#cl-name").value.trim();
-      var project = app.querySelector("#cl-project").value.trim();
-      if (!name) return;
-      addClient(name, project);
-    });
-  }
-  app.querySelectorAll('[data-action="client-status"]').forEach(function (el) {
-    el.addEventListener("change", function () { updateClientStatus(el.getAttribute("data-id"), el.value); });
-  });
-  app.querySelectorAll('[data-action="client-remove"]').forEach(function (el) {
-    el.addEventListener("click", function () { removeClient(el.getAttribute("data-id")); });
-  });
 }

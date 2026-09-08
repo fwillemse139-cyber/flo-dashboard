@@ -5,7 +5,7 @@
 //   - tasks: to_do-blocks op de "Tasks"-pagina (Personal)
 //   - agenda (read-only): "Daily Tasks"-database (Productivity), items
 //     met een "Geplande tijd"
-//   - kanban / health / financial / suerte: elk hun eigen JSON-blob-pagina
+//   - kanban / health / financial / identity: elk hun eigen JSON-blob-pagina
 //     (kind-pagina van "Tasks", erft dus automatisch dezelfde
 //     Connections-toegang — geen aparte deel-stap nodig per stuk).
 //     GET geeft { data: <geparste JSON> }, PUT verwacht { data: <JSON> }
@@ -27,8 +27,10 @@ var BLOB_PAGE_IDS = {
   kanban: "3d5b6cf8f8be8177a14ee74f07a4d799",   // "Kanban Data" — Productivity System
   health: "3d5b6cf8f8be812d913ad581287eff11",   // "Health Log Data"
   financial: "3d5b6cf8f8be816691a9c8eeec5cc20d", // "Financial Data"
-  suerte: "3d5b6cf8f8be81c39a57d3865782bed5",    // "Suerte Clients Data"
   identity: "3d5b6cf8f8be8156a6c2d16e7b67738b"   // "Identity Data"
+  // "suerte" (Suerte Clients Data) is verwijderd — Clients-feature is
+  // weggehaald uit de UI (8 sept 2026), de Notion-pagina zelf staat nog
+  // ongebruikt in Notion maar wordt niet meer aangesproken.
 };
 
 function notionFetch(token, path, options) {
@@ -155,7 +157,7 @@ export default async function handler(req, res) {
       return;
     }
     if (blobPageId) {
-      var fallback = (target === "kanban" || target === "health" || target === "suerte") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
+      var fallback = (target === "kanban" || target === "health") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
       if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, fallback) }); return; }
       if (req.method === "PUT") { res.status(200).json(await saveBlob(token, blobPageId, (req.body || {}).data)); return; }
       res.status(405).json({ error: target + " ondersteunt alleen GET/PUT" });

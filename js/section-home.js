@@ -3,6 +3,7 @@ import * as agenda from "./section-agenda.js";
 import * as tasks from "./section-tasks.js";
 import * as tools from "./section-tools.js";
 import * as markets from "./section-markets.js";
+import * as worksession from "./section-worksession.js";
 import { loadArray } from "./store.js";
 
 var container = null;
@@ -48,15 +49,12 @@ function suerteSummary() {
     var raw = localStorage.getItem("flo.suerte_financial");
     if (raw) financial = JSON.parse(raw);
   } catch (e) {}
-  var clients = loadArray("flo.suerte_clients");
   var monthPrefix = new Date().toISOString().slice(0, 7);
   var txThisMonth = (financial.transactions || []).filter(function (t) { return (t.date || "").indexOf(monthPrefix) === 0; });
   var spend = txThisMonth.filter(function (t) { return t.amount < 0; }).reduce(function (a, t) { return a + Math.abs(t.amount); }, 0);
   var income = txThisMonth.concat(financial.income || []).filter(function (t) { return (t.amount || 0) > 0; }).reduce(function (a, t) { return a + t.amount; }, 0);
-  var activeClients = clients.filter(function (c) { return c.status === "Actief"; }).length;
   var html = '<div class="home-line"><span>Uitgaven deze maand</span><span class="deadline">€' + spend.toFixed(2) + '</span></div>';
   html += '<div class="home-line"><span>Inkomsten deze maand</span><span class="deadline">€' + income.toFixed(2) + '</span></div>';
-  html += '<div class="home-line"><span>Actieve clients</span><span class="deadline">' + activeClients + '</span></div>';
   return html;
 }
 
@@ -90,17 +88,19 @@ export function init(rootEl, navigateTo) {
       '<div class="home-card"><div class="home-card-title">Deadlines</div><div id="home-w-deadlines"></div></div>' +
       '<div class="home-card"><div class="home-card-title">Agenda</div><div id="home-w-agenda"></div></div>' +
       '<div class="home-card"><div class="home-card-title">Tasks</div><div id="home-w-tasks"></div></div>' +
+      '<div class="home-card"><div class="home-card-title">Werksessie</div><div id="home-w-worksession"></div></div>' +
       '<div class="home-card home-card-wide"><div class="home-card-title">Markets</div><div id="home-w-markets"></div></div>' +
       '<div class="home-card home-card-wide"><div class="home-card-title">Connected Tools</div><div id="home-w-tools"></div></div>' +
       '<div class="home-card" data-nav="productivity" style="cursor:pointer;"><div class="home-card-title">Productivity System</div>' + productivitySummary() + '</div>' +
       '<div class="home-card" data-nav="health" style="cursor:pointer;"><div class="home-card-title">Health</div>' + healthSummary() + '</div>' +
-      '<div class="home-card" data-nav="suerte" style="cursor:pointer;"><div class="home-card-title">Suerte</div>' + suerteSummary() + '</div>' +
+      '<div class="home-card" data-nav="suerte" style="cursor:pointer;"><div class="home-card-title">Finance</div>' + suerteSummary() + '</div>' +
       '<div class="home-card" data-nav="identity" style="cursor:pointer;"><div class="home-card-title">Identity</div>' + identitySummary() + '</div>' +
     '</div>';
 
   deadlines.init(document.getElementById("home-w-deadlines"));
   agenda.init(document.getElementById("home-w-agenda"));
   tasks.init(document.getElementById("home-w-tasks"));
+  worksession.init(document.getElementById("home-w-worksession"));
   markets.init(document.getElementById("home-w-markets"));
   tools.init(document.getElementById("home-w-tools"));
 
