@@ -77,7 +77,21 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
   Yahoo's endpoint dekt alle 4 tickers (SEC0.DE, IS3N.DE, VUAA.DE, SNDK)
   gratis. Kanttekening: dit is geen officiële/gedocumenteerde API, kan in
   theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
-- **`api/notion.js`** (2 targets):
+- **`api/notion.js`** (3 targets):
+  - `?target=kanban`: Productivity System (Personal/Academic/Business).
+    Slaat het HELE `state.tasks`-array op als JSON in één code-block op
+    de Notion-pagina **"Kanban Data"** (kind van "Tasks", erft dus
+    automatisch dezelfde Connections-toegang — geen aparte deel-stap
+    nodig). `GET` leest de blob, `PUT` overschrijft 'm volledig.
+    `js/section-productivity.js` blijft verder ongewijzigd (zelfde
+    taak-model, zelfde `NOTION_SYNC_DATA`/`mergeNotionSync()`); alleen
+    `persist()` doet nu ook een fire-and-forget `PUT` naar Notion naast
+    de localStorage-save, en `init()` haalt bij het laden Notion's versie
+    op als bron van waarheid — **dit is de daadwerkelijke cross-device
+    sync voor Productivity System** (localStorage blijft alleen als
+    instant-load cache/fallback). Eerste-keer-bootstrap: als Notion leeg
+    is maar het apparaat al lokale taken heeft, worden die omhoog
+    geduwd i.p.v. overschreven met niks.
   - `?target=tasks`: lezen/schrijven in de "Tasks"-Notion-pagina onder
     Personal. **Live en werkend.** Verwijderen op het dashboard (×) is
     bewust GEEN Notion-delete — de taak blijft in Notion staan, wordt

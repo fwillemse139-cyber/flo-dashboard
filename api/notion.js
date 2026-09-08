@@ -20,6 +20,12 @@
 var NOTION_VERSION = "2022-06-28";
 var TASKS_PAGE_ID = "27eb6cf8f8be8048b2b8f69d731807bc";
 var AGENDA_DATABASE_ID = "13c79dd716294889ad16a6757bb5b6c7";
+// "Kanban Data" is een kind-pagina van "Tasks" — erft dus automatisch
+// dezelfde Connections-toegang, geen aparte deel-stap nodig. Slaat het
+// hele Productivity System-taken-array op als JSON in één code-block,
+// zodat elk apparaat exact dezelfde data leest/schrijft (echte sync,
+// i.p.v. losse localStorage per apparaat).
+var KANBAN_PAGE_ID = "3d5b6cf8f8be8177a14ee74f07a4d799";
 
 function notionFetch(token, path, options) {
   return fetch("https://api.notion.com/v1" + path, Object.assign({
@@ -63,6 +69,44 @@ async function updateTask(token, blockId, payload) {
   return { ok: true };
 }
 
+async function findCodeBlockId(token) {
+  var res = await notionFetch(token, "/blocks/" + KANBAN_PAGE_ID + "/children?page_size=100");
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Notion kanban list failed");
+  var codeBlock = (data.results || []).find(function (b) { return b.type === "code"; });
+  return codeBlock ? codeBlock.id : null;
+}
+
+async function listKanban(token) {
+  var res = await notionFetch(token, "/blocks/" + KANBAN_PAGE_ID + "/children?page_size=100");
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Notion kanban list failed");
+  var codeBlock = (data.results || []).find(function (b) { return b.type === "code"; });
+  if (!codeBlock) return [];
+  var text = plainText(codeBlock.code.rich_text);
+  try { return JSON.parse(text); } catch (e) { return []; }
+}
+
+// Notion-tekstblokken hebben een limiet van 2000 tekens per rich_text-run,
+// dus knippen we lange JSON op in stukken die elk als los rich_text-item
+// meegaan (Notion plakt ze bij weergave weer aan elkaar).
+function chunkRichText(text) {
+  var chunks = [];
+  for (var i = 0; i < text.length; i += 1900) chunks.push(text.slice(i, i + 1900));
+  if (chunks.length === 0) chunks.push("");
+  return chunks.map(function (c) { return { type: "text", text: { content: c } }; });
+}
+
+async function saveKanban(token, tasks) {
+  var blockId = await findCodeBlockId(token);
+  var body = { code: { rich_text: chunkRichText(JSON.stringify(tasks)), language: "javascript" } };
+  if (!blockId) throw new Error("Kon het Kanban Data code-block niet vinden");
+  var res = await notionFetch(token, "/blocks/" + blockId, { method: "PATCH", body: JSON.stringify(body) });
+  var data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Notion kanban save failed");
+  return { ok: true };
+}
+
 // Read-only: haalt "Daily Tasks"-items op met een ingevulde "Geplande tijd"
 // en geeft ze terug in hetzelfde vorm als de agenda-events (title/startsAt/
 // allDay), zodat ze in de bestaande Agenda-widget passen.
@@ -97,13 +141,19 @@ export default async function handler(req, res) {
   if (!token) { res.status(500).json({ error: "NOTION_TOKEN ontbreekt in Vercel environment variables" }); return; }
 
   var target = (req.query && req.query.target) || (new URL(req.url, "http://x").searchParams.get("target"));
-  if (target !== "tasks" && target !== "agenda") { res.status(400).json({ error: "target moet 'tasks' of 'agenda' zijn" }); return; }
+  if (target !== "tasks" && target !== "agenda" && target !== "kanban") { res.status(400).json({ error: "target moet 'tasks', 'agenda' of 'kanban' zijn" }); return; }
 
   try {
     if (target === "agenda") {
       if (req.method !== "GET") { res.status(405).json({ error: "agenda is read-only" }); return; }
       res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
       res.status(200).json({ events: await listAgenda(token) });
+      return;
+    }
+    if (target === "kanban") {
+      if (req.method === "GET") { res.status(200).json({ tasks: await listKanban(token) }); return; }
+      if (req.method === "PUT") { res.status(200).json(await saveKanban(token, (req.body || {}).tasks || [])); return; }
+      res.status(405).json({ error: "kanban ondersteunt alleen GET/PUT" });
       return;
     }
     if (req.method === "GET") {

@@ -107,6 +107,7 @@ function withAutoArchive(list) {
 
 // ---------- module state ----------
 var container = null;
+var notionAvailable = false;
 var state = {
   tasks: [],
   category: "personal",
@@ -116,13 +117,50 @@ var state = {
   dragId: null
 };
 
-function persist() { saveArray(STORAGE_KEY, state.tasks); }
+function persist() {
+  saveArray(STORAGE_KEY, state.tasks);
+  if (notionAvailable) {
+    // Fire-and-forget: hele array overschrijven in Notion (zelfde JSON-blob
+    // voor elk apparaat), zodat een wijziging hier ook op je andere
+    // apparaat verschijnt zodra dat opnieuw laadt.
+    fetch("/api/notion?target=kanban", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tasks: state.tasks })
+    }).catch(function () {});
+  }
+}
 
-export function init(rootEl) {
+export async function init(rootEl) {
   container = rootEl;
   state.tasks = withAutoArchive(loadArray(STORAGE_KEY));
-  if (mergeNotionSync(state.tasks)) persist();
+  if (mergeNotionSync(state.tasks)) saveArray(STORAGE_KEY, state.tasks);
   render();
+
+  // Notion (via /api/notion?target=kanban) is de bron van waarheid zodra de
+  // app op Vercel staat met NOTION_TOKEN gezet — lokaal (of zonder die env
+  // var) blijft dit gewoon bij de localStorage-versie hierboven.
+  try {
+    var res = await fetch("/api/notion?target=kanban");
+    if (res.ok) {
+      var data = await res.json();
+      var notionTasks = data.tasks || [];
+      notionAvailable = true;
+      if (notionTasks.length === 0 && state.tasks.length > 0) {
+        // Eerste keer dat Notion-sync aanstaat op dit apparaat: Notion is
+        // nog leeg, dus we duwen de huidige (lokale) voortgang omhoog i.p.v.
+        // 'm te overschrijven met niks.
+        persist();
+      } else {
+        state.tasks = withAutoArchive(notionTasks);
+        if (mergeNotionSync(state.tasks)) persist();
+        else saveArray(STORAGE_KEY, state.tasks);
+      }
+      render();
+    }
+  } catch (e) {
+    // geen backend beschikbaar (bv. lokaal testen) — blijft bij de lokale versie
+  }
 }
 
 function setState(patch) { Object.assign(state, patch); render(); }
