@@ -5,21 +5,21 @@ export var CONNECTED_TOOLS = [
     group: "Personal",
     items: [
       { name: "Notion", url: "https://notion.so", note: "Academic deadlines & planning" },
-      { name: "Gmail", url: "https://mail.google.com", note: "" }
+      { name: "Gmail", url: "https://mail.google.com", note: "E-mail" }
     ]
   },
   {
     group: "Academic",
     items: [
-      { name: "Brightspace HHS", url: "https://brightspace.hhs.nl/", note: "" },
-      { name: "Osiris HHS", url: "https://hhs.osiris-student.nl/", note: "" }
+      { name: "Brightspace", url: "https://brightspace.hhs.nl/", note: "Cursussen & opdrachten" },
+      { name: "Osiris", url: "https://hhs.osiris-student.nl/", note: "Cijfers & inschrijvingen" }
     ]
   },
   {
     group: "Suerte",
     items: [
-      { name: "Base44", url: "https://base44.com", note: "" },
-      { name: "Lovable", url: "https://lovable.dev", note: "" }
+      { name: "Base44", url: "https://base44.com", note: "AI app builder" },
+      { name: "Lovable", url: "https://lovable.dev", note: "AI app builder" }
     ]
   }
 ];
@@ -43,7 +43,7 @@ function render() {
     section.items.forEach(function (t) {
       html += '<a class="tool-card" href="' + esc(t.url) + '" target="_blank" rel="noopener">';
       html += '<div class="tool-name">' + esc(t.name) + '</div>';
-      if (t.note) html += '<div class="tool-note">' + esc(t.note) + '</div>';
+      html += '<div class="tool-note">' + esc(t.note || "") + '</div>';
       html += '</a>';
     });
     html += '</div></div>';
