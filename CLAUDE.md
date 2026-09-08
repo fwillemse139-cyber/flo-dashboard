@@ -60,18 +60,11 @@ door Floris geopperd als mogelijke toekomstige richting, nog niet gebouwd
 (vereist een Notion-integratie, vergelijkbare backend-afweging als de
 andere twee koppelingen hieronder).
 
-## Externe koppelingen (Apple Agenda + live koersen) — vereisen Vercel-deploy
+## Externe koppelingen — gedeployed op Vercel
 
-Beide vereisen een klein, onzichtbaar serverless-tussenstapje (Floris koos
-hier bewust voor, na eerst alle backend eruit gehaald te hebben — geen
-account/login voor hemzelf, wel 2 losse serverless functions):
+Project staat live op `https://flo-dashboard-fwillemse139-cybers-projects.vercel.app`
+(GitHub: fwillemse139-cyber/flo-dashboard, auto-deploy bij push naar `main`).
 
-- **`api/apple-calendar.js`**: haalt Floris' publieke iCloud-agenda
-  (.ics-feed) server-side op (nodig ivm CORS) en geeft events als JSON
-  terug. Env var `APPLE_CALENDAR_ICS_URL` moet gezet worden in Vercel —
-  **nog niet gebeurd, wacht op de publieke iCloud-link van Floris**
-  (Apple Agenda → agenda delen → "Openbare agenda" aan → link kopiëren,
-  `webcal://` vervangen door `https://`).
 - **`api/quotes.js`**: haalt koersen op via Yahoo Finance's publieke
   (niet-officiële) chart-endpoint, **live en werkend, geen API-key nodig**.
   Eerst geprobeerd met Twelve Data, maar hun gratis tier dekt geen Xetra
@@ -79,12 +72,23 @@ account/login voor hemzelf, wel 2 losse serverless functions):
   Yahoo's endpoint dekt alle 4 tickers (SEC0.DE, IS3N.DE, VUAA.DE, SNDK)
   gratis. Kanttekening: dit is geen officiële/gedocumenteerde API, kan in
   theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
-- Frontend (`section-markets.js`, `section-agenda.js`) doet al een `fetch("/api/...")`
-  met stille fallback — werkt dus al correct lokaal (toont placeholders/alleen
-  handmatige data) en pakt de echte data vanzelf op zodra bovenstaande 2
-  env vars gezet zijn én het project op Vercel staat.
-- **Nog te doen**: project deployen naar Vercel (Floris heeft al een account).
-  Simpelste weg: een GitHub-repo aanmaken, pushen, in Vercel importeren.
+- **`api/notion.js`** (3 targets):
+  - `?target=notes` / `?target=tasks`: lezen/schrijven in de "Notes"- en
+    "Tasks"-Notion-pagina's onder Personal (zie Notion-koppeling hieronder).
+  - `?target=agenda` (read-only): leest Floris' Notion **"Daily Tasks"**-
+    database (onder Productivity) — items met een ingevulde "Geplande tijd"
+    worden agenda-events. Dit vervangt de eerder geplande Apple Agenda-
+    koppeling: die database sync't namelijk al naar Apple Agenda als
+    geabonneerde kalender, en een geabonneerde (niet-zelf-beheerde) kalender
+    kan in Apple niet alsnog "openbaar" gemaakt worden — dus rechtstreeks
+    naar de Notion-bron in plaats van via Apple.
+  - Env var `NOTION_TOKEN` (interne Notion-integratie) moet in Vercel gezet
+    zijn, én de integratie moet zijn toegevoegd aan de "Notes"-pagina, de
+    "Tasks"-pagina, én de "Daily Tasks"-database (Notion → "..." menu →
+    Connections, op elk van de drie apart).
+- Frontend (`section-markets.js`, `section-agenda.js`, `section-notes.js`,
+  `section-tasks.js`) doet overal `fetch("/api/...")` met stille fallback —
+  werkt dus ook correct lokaal zonder backend (localStorage/placeholders).
 
 ## Notion-sync (Academic-taken binnen Productivity System)
 
