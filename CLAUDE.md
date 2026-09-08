@@ -64,6 +64,12 @@ weg; `api/notion.js` heeft alleen nog `?target=tasks` en `?target=agenda`.
 Project staat live op `https://flo-dashboard-fwillemse139-cybers-projects.vercel.app`
 (GitHub: fwillemse139-cyber/flo-dashboard, auto-deploy bij push naar `main`).
 
+**`vercel.json`**: zet `Cache-Control: no-cache, no-store, must-revalidate`
+op alle routes. Nodig omdat de bestandsnamen geen hash hebben (geen
+build-stap) — zonder dit kan een apparaat een oude JS/CSS-versie
+cachen na een nieuwe deploy, wat aanvoelde als "het synct niet tussen
+mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
+
 - **`api/quotes.js`**: haalt koersen op via Yahoo Finance's publieke
   (niet-officiële) chart-endpoint, **live en werkend, geen API-key nodig**.
   Eerst geprobeerd met Twelve Data, maar hun gratis tier dekt geen Xetra
