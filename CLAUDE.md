@@ -77,8 +77,8 @@ account/login voor hemzelf, wel 2 losse serverless functions):
 - **`api/quotes.js`**: haalt koersen op bij Twelve Data voor de 4 gevolgde
   instrumenten. Env var `TWELVE_DATA_API_KEY` moet gezet worden in Vercel —
   **nog niet gebeurd, wacht op een gratis API-key van Floris** (twelvedata.com).
-  Tickersymbolen voor de 3 Europese ETF's zijn nog niet geverifieerd tegen
-  Twelve Data's symbol search (zie TODO-comment in het bestand).
+  Tickers (SEC0:XETR, IS3N:XETR, SNDK:NASDAQ, VUAA:XETR) zijn geverifieerd
+  tegen Twelve Data's symbol-search endpoint (8 sept 2026).
 - Frontend (`section-markets.js`, `section-agenda.js`) doet al een `fetch("/api/...")`
   met stille fallback — werkt dus al correct lokaal (toont placeholders/alleen
   handmatige data) en pakt de echte data vanzelf op zodra bovenstaande 2

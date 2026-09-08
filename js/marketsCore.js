@@ -29,9 +29,10 @@ export var EXCHANGES = [
   }
 ];
 
-// Confirmed instruments (4 — geen 5e opgegeven).
+// Confirmed instruments (4 — geen 5e opgegeven). Tickers geverifieerd
+// tegen Twelve Data's symbol-search endpoint (8 sept 2026).
 export var TICKERS = [
-  { ticker: "SEMI", display_name: "iShares Semiconductor UCITS ETF" },
+  { ticker: "SEC0", display_name: "iShares MSCI Global Semiconductors UCITS ETF (Acc)" },
   { ticker: "IS3N", display_name: "iShares Core MSCI EM IMI UCITS ETF (Acc)" },
   { ticker: "SNDK", display_name: "SanDisk Corp" },
   { ticker: "VUAA", display_name: "Vanguard S&P 500 UCITS ETF (Acc)" }

@@ -2,13 +2,11 @@
 // Env var TWELVE_DATA_API_KEY moet gezet zijn in Vercel (Project Settings
 // → Environment Variables). Nooit in de browser/frontend-code gebruiken.
 //
-// LET OP: de Xetra/Euronext-tickers hieronder zijn nog niet geverifieerd
-// tegen Twelve Data's symbol-search endpoint — controleer per instrument
-// het exacte symbool+beurs-suffix voordat je hierop vertrouwt.
+// Geverifieerd tegen Twelve Data's symbol-search endpoint (8 sept 2026).
 var SYMBOL_MAP = {
-  SEMI: { query: "SEMI:XETR", display_name: "iShares Semiconductor UCITS ETF" },
+  SEC0: { query: "SEC0:XETR", display_name: "iShares MSCI Global Semiconductors UCITS ETF (Acc)" },
   IS3N: { query: "IS3N:XETR", display_name: "iShares Core MSCI EM IMI UCITS ETF (Acc)" },
-  SNDK: { query: "SNDK", display_name: "SanDisk Corp" },
+  SNDK: { query: "SNDK:NASDAQ", display_name: "SanDisk Corp" },
   VUAA: { query: "VUAA:XETR", display_name: "Vanguard S&P 500 UCITS ETF (Acc)" }
 };
 
