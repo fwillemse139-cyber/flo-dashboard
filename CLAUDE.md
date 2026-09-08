@@ -27,18 +27,18 @@ aanpak.
   `@efferd/dashboard-1` shadcn-blok (donker, neutraal grijs, geen
   amber-accent meer) — zie tokens bovenaan het bestand
 - `js/store.js` — kleine localStorage-helper (`loadArray`/`saveArray`/`uid`)
-- `js/section-*.js` — één module per sectie (Home, Agenda, Quick Notes,
-  Tasks, Productivity System, Connected Tools, Markets)
+- `js/section-*.js` — één module per sectie (Home, Agenda, Tasks,
+  Productivity System, Connected Tools, Markets)
 - `js/marketsCore.js` — gedeelde beursuren-logica (Home en Markets gebruiken 'm allebei)
 
 ## Pagina's (8 sept 2026: teruggebracht naar 2)
 
 Alleen **Home** en **Productivity System** zijn nog eigen pagina's in de
-navigatie. Agenda, Quick Notes, Tasks, Markets en Connected Tools zijn nu
-uitsluitend widgets ÓP Home (naast/onder elkaar in een grid) — hun
-`section-*.js`-bestanden bestaan nog als losse modules met een `init(rootEl)`
-die in een willekeurige container gemonteerd kan worden, maar worden nergens
-anders meer aangeroepen dan vanuit `section-home.js`.
+navigatie. Agenda, Tasks, Markets en Connected Tools zijn nu uitsluitend
+widgets ÓP Home (naast/onder elkaar in een grid) — hun `section-*.js`-
+bestanden bestaan nog als losse modules met een `init(rootEl)` die in een
+willekeurige container gemonteerd kan worden, maar worden nergens anders
+meer aangeroepen dan vanuit `section-home.js`.
 
 - **Home**: het hele dashboard in één oogopslag —
   - **Deadlines**: top 5 openstaande taken uit Productivity System (alle
@@ -48,17 +48,16 @@ anders meer aangeroepen dan vanuit `section-home.js`.
   - **Agenda**: eerstvolgende 5 events, tenzij er meer dan 5 binnen 2 dagen
     vallen (dan worden juist alle events binnen die 2 dagen getoond).
     Combineert handmatige events + Apple-agenda-events (zie hieronder).
-  - **Tasks**, **Quick Notes**, **Markets**, **Connected Tools**: zelfde
-    functionaliteit als voorheen, nu als widget.
+  - **Tasks**, **Markets**, **Connected Tools**: zelfde functionaliteit als
+    voorheen, nu als widget.
 - **Productivity System**: het oorspronkelijke kanban-systeem
   (Personal/Academic/Business), inclusief de Notion-sync voor
   Academic-taken (`NOTION_SYNC_DATA`/`mergeNotionSync()` in
   `js/section-productivity.js`)
 
-**Quick Notes → eventueel een Notion-pagina i.p.v. lokale notities**:
-door Floris geopperd als mogelijke toekomstige richting, nog niet gebouwd
-(vereist een Notion-integratie, vergelijkbare backend-afweging als de
-andere twee koppelingen hieronder).
+**Quick Notes is verwijderd** (8 sept 2026, op verzoek van Floris) — geen
+sectie, geen widget, geen Notion-koppeling meer. `js/section-notes.js` is
+weg; `api/notion.js` heeft alleen nog `?target=tasks` en `?target=agenda`.
 
 ## Externe koppelingen — gedeployed op Vercel
 
@@ -72,9 +71,9 @@ Project staat live op `https://flo-dashboard-fwillemse139-cybers-projects.vercel
   Yahoo's endpoint dekt alle 4 tickers (SEC0.DE, IS3N.DE, VUAA.DE, SNDK)
   gratis. Kanttekening: dit is geen officiële/gedocumenteerde API, kan in
   theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
-- **`api/notion.js`** (3 targets):
-  - `?target=notes` / `?target=tasks`: lezen/schrijven in de "Notes"- en
-    "Tasks"-Notion-pagina's onder Personal. **Live en werkend.**
+- **`api/notion.js`** (2 targets):
+  - `?target=tasks`: lezen/schrijven in de "Tasks"-Notion-pagina onder
+    Personal. **Live en werkend.**
   - `?target=agenda` (read-only): leest Floris' Notion **"Daily Tasks"**-
     database (onder Productivity) — items met een ingevulde "Geplande tijd"
     worden agenda-events, samengevoegd met de handmatige agenda-items.
@@ -82,14 +81,17 @@ Project staat live op `https://flo-dashboard-fwillemse139-cybers-projects.vercel
     sync't al naar Apple Agenda als geabonneerde kalender, en een
     geabonneerde (niet-zelf-beheerde) kalender kan in Apple niet alsnog
     "openbaar" gemaakt worden — dus rechtstreeks naar de Notion-bron.
+    (Floris' "Notion agenda" bleek de losse Notion Calendar-app te zijn,
+    calendar.notion.so — die heeft geen API, dus die kant is een dead end;
+    "Daily Tasks" blijft de enige haalbare Notion-route voor de agenda.)
   - Env var `NOTION_TOKEN` staat in Vercel; de integratie ("Flo's
-    Dashboard") moet zijn toegevoegd aan de "Notes"-pagina, de
-    "Tasks"-pagina, én de "Daily Tasks"-database (Notion → "..." menu →
-    Connections, op elk apart) — status per stuk kan verschillen, check
-    bij problemen welke van de drie nog niet gedeeld is.
-- Frontend (`section-markets.js`, `section-agenda.js`, `section-notes.js`,
-  `section-tasks.js`) doet `fetch("/api/...")` met stille fallback — werkt
-  dus ook correct lokaal zonder backend (localStorage/placeholders).
+    Dashboard") moet zijn toegevoegd aan de "Tasks"-pagina én de
+    "Daily Tasks"-database (Notion → "..." menu → Connections, op elk
+    apart) — status per stuk kan verschillen, check bij problemen welke
+    van de twee nog niet gedeeld is.
+- Frontend (`section-markets.js`, `section-agenda.js`, `section-tasks.js`)
+  doet `fetch("/api/...")` met stille fallback — werkt dus ook correct
+  lokaal zonder backend (localStorage/placeholders).
 
 ## Notion-sync (Academic-taken binnen Productivity System)
 
