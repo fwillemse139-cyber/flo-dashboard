@@ -73,7 +73,11 @@ Project staat live op `https://flo-dashboard-fwillemse139-cybers-projects.vercel
   theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
 - **`api/notion.js`** (2 targets):
   - `?target=tasks`: lezen/schrijven in de "Tasks"-Notion-pagina onder
-    Personal. **Live en werkend.**
+    Personal. **Live en werkend.** Verwijderen op het dashboard (×) is
+    bewust GEEN Notion-delete — de taak blijft in Notion staan, wordt
+    alleen lokaal verborgen (`flo.hidden_notion_task_ids` in
+    `js/section-tasks.js`) zodat 'm ook niet terugkomt bij de volgende
+    fetch. Aanvinken (done) sync't wél gewoon naar Notion's checkbox.
   - `?target=agenda` (read-only): leest Floris' Notion **"Daily Tasks"**-
     database (onder Productivity) — items met een ingevulde "Geplande tijd"
     worden agenda-events, samengevoegd met de handmatige agenda-items.

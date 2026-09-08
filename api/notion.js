@@ -63,12 +63,6 @@ async function updateTask(token, blockId, payload) {
   return { ok: true };
 }
 
-async function deleteTask(token, blockId) {
-  var res = await notionFetch(token, "/blocks/" + blockId, { method: "DELETE" });
-  if (!res.ok) { var data = await res.json(); throw new Error(data.message || "Notion delete failed"); }
-  return { ok: true };
-}
-
 // Read-only: haalt "Daily Tasks"-items op met een ingevulde "Geplande tijd"
 // en geeft ze terug in hetzelfde vorm als de agenda-events (title/startsAt/
 // allDay), zodat ze in de bestaande Agenda-widget passen.
@@ -118,8 +112,6 @@ export default async function handler(req, res) {
       res.status(200).json(await addTask(token, req.body || {}));
     } else if (req.method === "PATCH") {
       res.status(200).json(await updateTask(token, req.body.id, req.body || {}));
-    } else if (req.method === "DELETE") {
-      res.status(200).json(await deleteTask(token, req.body.id));
     } else {
       res.status(405).json({ error: "method not allowed" });
     }

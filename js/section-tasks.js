@@ -1,29 +1,35 @@
 import { loadArray, saveArray, uid } from "./store.js";
 
 var STORAGE_KEY = "flo.quick_tasks";
+var HIDDEN_KEY = "flo.hidden_notion_task_ids";
 var container = null;
 var items = [];
 var notionAvailable = false;
+var hiddenIds = [];
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function persist() { saveArray(STORAGE_KEY, items); }
+function persistHidden() { saveArray(HIDDEN_KEY, hiddenIds); }
 
 export async function init(rootEl) {
   container = rootEl;
+  hiddenIds = loadArray(HIDDEN_KEY);
   items = loadArray(STORAGE_KEY);
   render();
 
   // Notion (via /api/notion?target=tasks) is de bron van waarheid zodra de
   // app op Vercel staat met NOTION_TOKEN gezet — lokaal (of zonder die env
   // var) valt dit terug op de localStorage-versie hierboven, geen harde fout.
+  // Taken die je op het dashboard "verwijdert" worden hier gefilterd
+  // (hiddenIds) i.p.v. echt uit Notion verwijderd — ze blijven daar staan.
   try {
     var res = await fetch("/api/notion?target=tasks");
     if (res.ok) {
       var data = await res.json();
-      items = data.items || [];
+      items = (data.items || []).filter(function (x) { return hiddenIds.indexOf(x.id) === -1; });
       notionAvailable = true;
       persist();
       render();
@@ -56,11 +62,15 @@ async function toggleItem(id) {
   }
 }
 
-async function removeItem(id) {
+function removeItem(id) {
   items = items.filter(function (x) { return x.id !== id; });
   persist(); render();
   if (notionAvailable) {
-    try { await fetch("/api/notion?target=tasks", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: id }) }); } catch (e) {}
+    // Bewust GEEN Notion-delete: de taak blijft in Notion staan, alleen
+    // lokaal verborgen op het dashboard (Floris wil taken niet kwijtraken
+    // in Notion door ze op het dashboard weg te klikken).
+    hiddenIds.push(id);
+    persistHidden();
   }
 }
 
