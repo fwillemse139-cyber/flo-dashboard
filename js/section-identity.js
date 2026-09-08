@@ -1,9 +1,9 @@
-import { uid, loadArray } from "./store.js";
-import * as coach from "./coach.js";
+import { uid } from "./store.js";
 
 var STORAGE_KEY = "flo.identity";
 var container = null;
 var notionAvailable = false;
+var localEditedSinceMount = false;
 var state = { statement: "", traits: [], evidence: [], goals: [] };
 
 function esc(s) {
@@ -49,6 +49,7 @@ function saveLocal() {
 }
 
 function persist() {
+  localEditedSinceMount = true;
   saveLocal();
   if (notionAvailable) {
     fetch("/api/notion?target=identity", {
@@ -61,6 +62,7 @@ function persist() {
 
 export async function init(rootEl) {
   container = rootEl;
+  localEditedSinceMount = false;
   var local = loadLocal();
   if (local) {
     state = local;
@@ -77,7 +79,12 @@ export async function init(rootEl) {
       notionAvailable = true;
       var notionData = body.data;
       var notionEmpty = !notionData || !notionData.goals || notionData.goals.length === 0;
-      if (notionEmpty && state.goals.length > 0) {
+      if (localEditedSinceMount) {
+        // je hebt al iets aangepast terwijl deze (trage) fetch nog liep —
+        // niet overschrijven met de oudere Notion-snapshot die nu pas
+        // terugkomt, wel alsnog pushen zodat Notion bijgewerkt raakt.
+        persist();
+      } else if (notionEmpty && state.goals.length > 0) {
         persist(); // eerste keer: lokale (of geseede) data omhoog duwen
       } else {
         state = notionData;
@@ -87,46 +94,6 @@ export async function init(rootEl) {
     }
   } catch (e) {
     // geen backend beschikbaar — blijft bij de lokale versie
-  }
-
-  await coach.ensureLoaded();
-}
-
-// ---------- AI-coach: deep-research + dagelijkse check-ins ----------
-// Zelfstandig van de lokale `state`-var (leest zelf verse data), zodat dit
-// ook aangeroepen kan worden vanuit Home zonder dat de Identity-pagina al
-// bezocht is deze sessie.
-function buildCoachContext(s) {
-  var openGoals = (s.goals || []).filter(function (g) { return !g.done; });
-  var traitsCtx = (s.traits || []).map(function (t) {
-    var evid = (s.evidence || []).filter(function (e) { return e.traitId === t.id; });
-    return { name: t.name, evidenceCount: evid.length, recentEvidence: evid[0] ? evid[0].date + " — " + evid[0].note : null };
-  });
-  var openTasks = loadArray("flo.kanban_tasks")
-    .filter(function (t) { return t.status !== "done" && t.status !== "archived"; })
-    .map(function (t) { return t.title; })
-    .slice(0, 8);
-  return { statement: s.statement, traits: traitsCtx, goals: openGoals, openTasks: openTasks };
-}
-
-// Ochtend (05-11u): dagplan op basis van doelen/taken. Midden (11-17u):
-// korte check-in. Avond (17u+): reflectie. Max 1x per moment per dag —
-// wordt aangeroepen vanuit Home's init() zodat het al klaarstaat zodra je
-// het dashboard opent, ongeacht of je naar Identity navigeert.
-export async function checkDailyCheckins() {
-  await coach.ensureLoaded();
-  var s = loadLocal() || { statement: "", traits: [], evidence: [], goals: [] };
-  var context = buildCoachContext(s);
-  var hour = new Date().getHours();
-  if (hour >= 5 && hour < 11 && !coach.wasCheckinSentToday("identity", "morning")) {
-    await coach.askCoach("identity", "identity-morning", context, "ochtend-planning");
-    coach.markCheckinSent("identity", "morning");
-  } else if (hour >= 11 && hour < 17 && !coach.wasCheckinSentToday("identity", "midday")) {
-    await coach.askCoach("identity", "identity-midday", context, "midden-check-in");
-    coach.markCheckinSent("identity", "midday");
-  } else if (hour >= 17 && !coach.wasCheckinSentToday("identity", "evening")) {
-    await coach.askCoach("identity", "identity-evening", context, "avond-reflectie");
-    coach.markCheckinSent("identity", "evening");
   }
 }
 
@@ -223,12 +190,6 @@ function render() {
   html += renderGoalColumn("mid", "Mid term");
   html += renderGoalColumn("long", "Long term");
 
-  html += '<div class="home-card home-card-wide"><div class="home-card-title">Berichten</div>';
-  html += coach.renderChatThread("identity");
-  html += '<div class="chat-input-row" style="margin-top:10px;"><input class="field" id="id-chat-input" placeholder="Vraag iets over je doelen of hoe je ervoor staat…"><button class="new-task-btn" id="id-chat-send">Versturen</button></div>';
-  html += '<button class="archive-nav" id="id-chat-analyze" style="margin-top:8px;">Deep research doelen</button>';
-  html += "</div>";
-
   html += "</div>";
   container.innerHTML = html;
   attachEvents();
@@ -283,23 +244,4 @@ function attachEvents() {
   app.querySelectorAll('[data-action="remove-goal"]').forEach(function (el) {
     el.addEventListener("click", function () { removeGoal(el.getAttribute("data-id")); });
   });
-
-  var chatSendBtn = app.querySelector("#id-chat-send");
-  if (chatSendBtn) {
-    chatSendBtn.addEventListener("click", function () {
-      var input = app.querySelector("#id-chat-input");
-      var v = input.value.trim();
-      if (!v) return;
-      input.value = "";
-      coach.addMessage("identity", "user", v);
-      render();
-      coach.askCoach("identity", "identity", buildCoachContext(state), null).then(render);
-    });
-  }
-  var chatAnalyzeBtn = app.querySelector("#id-chat-analyze");
-  if (chatAnalyzeBtn) {
-    chatAnalyzeBtn.addEventListener("click", function () {
-      coach.askCoach("identity", "identity", buildCoachContext(state), "handmatige deep-research aangevraagd").then(render);
-    });
-  }
 }

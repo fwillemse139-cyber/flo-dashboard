@@ -5,6 +5,7 @@ var STORAGE_KEY = "flo.suerte_financial";
 var container = null;
 var financial = { transactions: [], income: [] };
 var notionAvailable = { financial: false };
+var localEditedSinceMount = false;
 var uploadStatus = "";
 var uploadDebug = "";
 
@@ -13,6 +14,7 @@ function esc(s) {
 }
 
 function persistFinancial() {
+  localEditedSinceMount = true;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(financial)); } catch (e) {}
   if (notionAvailable.financial) {
     fetch("/api/notion?target=financial", {
@@ -25,6 +27,7 @@ function persistFinancial() {
 
 export async function init(rootEl) {
   container = rootEl;
+  localEditedSinceMount = false;
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
     financial = raw ? JSON.parse(raw) : { transactions: [], income: [] };
@@ -39,7 +42,12 @@ export async function init(rootEl) {
       var notionFinancial = fBody.data;
       var localHasData = (financial.transactions || []).length > 0 || (financial.income || []).length > 0;
       var notionHasData = notionFinancial && ((notionFinancial.transactions || []).length > 0 || (notionFinancial.income || []).length > 0);
-      if (!notionHasData && localHasData) {
+      if (localEditedSinceMount) {
+        // je hebt al iets aangepast (bv. een upload) terwijl deze (trage)
+        // fetch nog liep — niet overschrijven met de oudere Notion-
+        // snapshot die nu pas terugkomt, wel alsnog pushen.
+        persistFinancial();
+      } else if (!notionHasData && localHasData) {
         persistFinancial();
       } else if (notionFinancial) {
         financial = notionFinancial;

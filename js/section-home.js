@@ -4,8 +4,6 @@ import * as tasks from "./section-tasks.js";
 import * as tools from "./section-tools.js";
 import * as markets from "./section-markets.js";
 import * as worksession from "./section-worksession.js";
-import * as identity from "./section-identity.js";
-import * as coach from "./coach.js";
 import { loadArray } from "./store.js";
 
 var container = null;
@@ -77,13 +75,6 @@ function identitySummary() {
   return html;
 }
 
-function renderCoachCard() {
-  var msg = coach.getLatestMessage("identity");
-  if (!msg) return '<div class="empty-drop">Nog geen coach-berichten</div>';
-  var preview = msg.text.length > 220 ? msg.text.slice(0, 220) + "…" : msg.text;
-  return '<div class="chat-msg assistant" style="margin:0;">' + esc(preview).replace(/\n/g, "<br>") + "</div>";
-}
-
 export function init(rootEl, navigateTo) {
   container = rootEl;
   goTo = navigateTo;
@@ -98,7 +89,6 @@ export function init(rootEl, navigateTo) {
       '<div class="home-card"><div class="home-card-title">Agenda</div><div id="home-w-agenda"></div></div>' +
       '<div class="home-card"><div class="home-card-title">Tasks</div><div id="home-w-tasks"></div></div>' +
       '<div class="home-card"><div class="home-card-title">Werksessie</div><div id="home-w-worksession"></div></div>' +
-      '<div class="home-card home-card-wide" data-nav="identity" style="cursor:pointer;"><div class="home-card-title">Coach</div><div id="home-w-coach">' + renderCoachCard() + '</div></div>' +
       '<div class="home-card home-card-wide"><div class="home-card-title">Markets</div><div id="home-w-markets"></div></div>' +
       '<div class="home-card home-card-wide"><div class="home-card-title">Connected Tools</div><div id="home-w-tools"></div></div>' +
       '<div class="home-card" data-nav="productivity" style="cursor:pointer;"><div class="home-card-title">Productivity System</div>' + productivitySummary() + '</div>' +
@@ -119,13 +109,4 @@ export function init(rootEl, navigateTo) {
       el.addEventListener("click", function () { goTo(el.getAttribute("data-nav")); });
     });
   }
-
-  coach.ensureLoaded().then(function () {
-    var coachEl = document.getElementById("home-w-coach");
-    if (coachEl) coachEl.innerHTML = renderCoachCard();
-    identity.checkDailyCheckins().then(function () {
-      var el = document.getElementById("home-w-coach");
-      if (el) el.innerHTML = renderCoachCard();
-    }).catch(function () {});
-  }).catch(function () {});
 }

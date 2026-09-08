@@ -229,65 +229,43 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**.
   (`navigateTo`-callback, doorgegeven van `js/main.js` naar
   `section-home.js`'s `init(rootEl, navigateTo)`).
 
-## AI-coach: Health-patronen + Identity-begeleiding (8 sept 2026)
+## AI-coach: uitgeprobeerd en weer teruggedraaid (8 sept 2026)
 
-Op verzoek van Floris: niet alleen loggen/afvinken, maar dat de app actief
-meedenkt — bij Health via patroon-detectie ("waarom slaap ik de laatste
-tijd vaker slecht"), bij Identity door te helpen **hoe** hij naar zijn
-doelen toewerkt (niet alleen afvinken) inclusief een dagelijkse ochtend-/
-middag-/avond-check-in. Dit vereist een echte LLM-call vanuit de live app
-(niet Claude Code, maar een losse Anthropic API-key + bijbehorende kosten
-per gebruik) — expliciet met Floris besproken en gekozen boven een gratis
-regelgebaseerd alternatief.
+Er is kort een AI-coach gebouwd (patroon-detectie op Health + "deep
+research"/dagelijkse check-ins op Identity, via een losse Anthropic
+API-key in `api/coach.js` + `js/coach.js`) — Floris koos dit eerst
+expliciet boven een gratis regelgebaseerd alternatief, maar wilde
+daarna alsnog **geen extra kosten** ("ik wil geen extra kosten dus laat
+dat"). Volledig verwijderd: `api/coach.js`, `js/coach.js`, de
+Berichten-kaarten op Health/Identity, de Coach-kaart op Home, de
+`coach`-target uit `BLOB_PAGE_IDS` in `api/notion.js`, en de
+`.chat-*`-CSS. De lege "Coach Data"-Notion-pagina staat nog ongebruikt
+in Notion (zelfde soort orphan als "Suerte Clients Data").
+**Als dit ooit terugkomt**: ga niet opnieuw op zoek naar een
+gratis-met-echte-AI-oplossing — Floris heeft dit bewust afgewogen en
+gekozen voor "geen kosten" boven "AI-coaching", dus vraag eerst of hij
+alsnog kosten accepteert voor deze specifieke feature voordat je 'm
+opnieuw bouwt.
 
-- **`api/coach.js`**: Vercel serverless function, proxy naar Anthropic's
-  Messages API (`model: "claude-sonnet-5"`). Stateless — de client stuurt
-  bij elke aanvraag de relevante context (health-entries, of identity-
-  statement/traits/goals/open taken) + de laatste ~20 berichten van het
-  gesprek mee; deze functie kiest op basis van `promptKey` de juiste
-  system-prompt (`health` / `identity` / `identity-morning` /
-  `identity-midday` / `identity-evening`) en geeft alleen de volgende
-  coach-reactie terug.
-  - **Eenmalige setup (Floris, nog te doen)**: maak een API-key op
-    https://console.anthropic.com/settings/keys (los account/losse
-    facturering t.o.v. een Claude.ai-abonnement — betaalt per API-call,
-    dus dit brengt reële, doorlopende kosten met zich mee) en zet 'm als
-    env var `ANTHROPIC_API_KEY` in Vercel (Project Settings → Environment
-    Variables), zelfde plek als `NOTION_TOKEN`. Zonder deze key geeft
-    `/api/coach` een 500 met duidelijke foutmelding, en toont de chat-UI
-    nette fallback-berichten i.p.v. te crashen.
-- **`js/coach.js`**: gedeelde client — één Notion-blob (`?target=coach`,
-  pagina "Coach Data") met per "thread" (`health`, `identity`) een array
-  berichten + `lastAutoMessageAt`/`lastCheckins`. Exporteert `askCoach
-  (threadKey, promptKey, context, trigger)`, `addMessage`,
-  `renderChatThread` (gedeelde chat-bubbel-HTML) en de check-in-helpers.
-- **Health** (`js/section-health.js`): `detectPattern()` kijkt naar de
-  laatste 7 dagen (geen API-call, puur lokale heuristiek) — 3x
-  matige/slechte mood, 3x lage energie/productiviteit (≤4), of een
-  trefwoord ("hoofdpijn"/"slecht geslapen"/"moe"/"afspraak"/"te laat") dat
-  2x terugkomt in de notities. Bij een treffer (max 1x per 3 dagen) stuurt
-  `maybeTriggerCoach()` de laatste 14 dagen naar de coach, die het patroon
-  benoemt en één gerichte vraag stelt. Een "Berichten"-kaart op de
-  Health-pagina toont het hele gesprek + een open chat-input + een
-  "Analyseer nu"-knop voor een handmatige analyse.
-- **Identity** (`js/section-identity.js`): "Berichten"-kaart met een
-  "Deep research doelen"-knop (`promptKey: "identity"`, kijkt naar
-  statement/eigenschappen+bewijs/open doelen/openstaande Productivity-
-  taken) + open chat. **Dagelijkse check-ins**: `checkDailyCheckins()`
-  (self-contained, leest direct uit `localStorage` zodat het ook werkt
-  zonder dat Identity deze sessie al bezocht is) checkt het tijdstip —
-  05-11u ochtend (dagplan o.b.v. doelen/taken), 11-17u midden-check-in,
-  17u+ avond-reflectie — en verstuurt max 1x per moment per dag. Wordt
-  aangeroepen vanuit **`section-home.js`'s `init()`**, dus het staat al
-  klaar zodra Floris het dashboard opent (niet pas na navigeren naar
-  Identity) en verschijnt ook als preview in een "Coach"-kaart op Home.
-  **Belangrijke kanttekening**: dit is geen echte push-notificatie naar
-  de telefoon — het bericht wordt pas gegenereerd zodra de app daadwerkelijk
-  geopend wordt in het bijbehorende tijdvak. Een losse
-  service-worker/push-opzet zou dat wel kunnen, maar is een veel grotere
-  stap en is (nog) niet gebouwd.
-- **CSS**: `.chat-thread`/`.chat-msg`/`.chat-input-row` in
-  `css/dashboard.css`, gedeeld door Health en Identity.
+## Race-conditie-fix: snel wijzigen direct na openen van een pagina (8 sept 2026)
+
+Floris meldde dat "hoe voel je je vandaag" (Health) soms niet leek op te
+slaan. Oorzaak: elke Notion-blob-pagina (`kanban`/`health`/`financial`/
+`identity`) doet bij `init()` een optimistische lokale render, gevolgd
+door een asynchrone Notion-`GET` die als "bron van waarheid" de lokale
+state overschrijft zodra die terugkomt. Als je (snel) iets opslaat
+**terwijl** die `GET` nog onderweg is, kwam de oudere Notion-snapshot
+er soms ná binnen en overschreef hij stilletjes je net opgeslagen
+wijziging — een race condition, geen kapotte save-knop. Op productie
+(trager netwerk naar Vercel/Notion) is dat venster groter dan lokaal
+testen, wat verklaart waarom het daar wel opviel.
+
+**Fix**: elk van de 4 modules heeft nu een `localEditedSinceMount`-vlag
+(false bij `init()`, op `true` gezet zodra `persist()`/`persistFinancial()`
+draait). Als de Notion-`GET` terugkomt terwijl die vlag al `true` is,
+wordt de net opgeslagen data alsnog naar Notion gepusht i.p.v. overschreven
+door de oudere snapshot. Zie `js/section-health.js`, `js/section-identity.js`,
+`js/section-productivity.js`, `js/section-suerte.js`.
 
 ## Voorkeuren
 
@@ -296,3 +274,11 @@ regelgebaseerd alternatief.
 - Geen accounts/wachtwoorden/setup-gedoe voor de eindgebruiker — simpelheid
   boven features die daarvoor nodig zijn (expliciet herbevestigd 8 sept 2026
   na het uitproberen en terugdraaien van Supabase).
+- **Geen doorlopende/reële kosten** voor features — ook niet iets kleins
+  per gebruik. Expliciet bevestigd 8 sept 2026 na het uitproberen en
+  terugdraaien van de Anthropic-API-gebaseerde AI-coach (Floris koos
+  eerst zelf voor de betaalde/AI-optie, maar wilde 'm er alsnog uit toen
+  puntje bij paaltje kwam). Stel bij een nieuwe feature met externe-
+  API-kosten (LLM's, betaalde data-providers, etc.) dus expliciet de
+  vraag of de kosten oké zijn vóórdat je 'm bouwt, en verwacht dat het
+  antwoord alsnog "nee" kan zijn ook als eerder "ja" gezegd is.

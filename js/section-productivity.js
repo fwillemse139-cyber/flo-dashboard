@@ -108,6 +108,7 @@ function withAutoArchive(list) {
 // ---------- module state ----------
 var container = null;
 var notionAvailable = false;
+var localEditedSinceMount = false;
 var state = {
   tasks: [],
   category: "personal",
@@ -118,6 +119,7 @@ var state = {
 };
 
 function persist() {
+  localEditedSinceMount = true;
   saveArray(STORAGE_KEY, state.tasks);
   if (notionAvailable) {
     // Fire-and-forget: hele array overschrijven in Notion (zelfde JSON-blob
@@ -133,6 +135,7 @@ function persist() {
 
 export async function init(rootEl) {
   container = rootEl;
+  localEditedSinceMount = false;
   state.tasks = withAutoArchive(loadArray(STORAGE_KEY));
   if (mergeNotionSync(state.tasks)) saveArray(STORAGE_KEY, state.tasks);
   render();
@@ -146,7 +149,12 @@ export async function init(rootEl) {
       var data = await res.json();
       var notionTasks = data.data || [];
       notionAvailable = true;
-      if (notionTasks.length === 0 && state.tasks.length > 0) {
+      if (localEditedSinceMount) {
+        // je hebt al iets aangepast terwijl deze (trage) fetch nog liep —
+        // niet overschrijven met de oudere Notion-snapshot die nu pas
+        // terugkomt, wel alsnog pushen zodat Notion bijgewerkt raakt.
+        persist();
+      } else if (notionTasks.length === 0 && state.tasks.length > 0) {
         // Eerste keer dat Notion-sync aanstaat op dit apparaat: Notion is
         // nog leeg, dus we duwen de huidige (lokale) voortgang omhoog i.p.v.
         // 'm te overschrijven met niks.
