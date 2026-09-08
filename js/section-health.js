@@ -1,4 +1,5 @@
 import { loadArray, saveArray } from "./store.js";
+import { renderBars } from "./barChart.js";
 
 var STORAGE_KEY = "flo.health_log";
 var SESSION_KEY = "flo.health_active_session";
@@ -110,6 +111,43 @@ function entriesInLastDays(days) {
 
 function fmtNum(n) { return n == null ? "—" : n.toFixed(1); }
 
+// Groepeert entries per kalendermaand (laatste N maanden) en geeft per
+// maand het gemiddelde van `field` terug — lege maanden (geen logs) worden
+// overgeslagen zodat de staafdiagram niet vol misleidende nullen komt.
+function monthlyAverage(field, monthsBack) {
+  var now = new Date();
+  var buckets = [];
+  for (var i = monthsBack - 1; i >= 0; i--) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({ key: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), label: d.toLocaleDateString("nl-NL", { month: "short", year: "2-digit" }), vals: [] });
+  }
+  entries.forEach(function (e) {
+    var key = (e.date || "").slice(0, 7);
+    var bucket = buckets.find(function (b) { return b.key === key; });
+    if (bucket && typeof e[field] === "number") bucket.vals.push(e[field]);
+  });
+  return buckets.filter(function (b) { return b.vals.length > 0; }).map(function (b) {
+    return { label: b.label, total: b.vals.reduce(function (a, v) { return a + v; }, 0) / b.vals.length };
+  });
+}
+
+function monthlyWorkHours(monthsBack) {
+  var now = new Date();
+  var buckets = [];
+  for (var i = monthsBack - 1; i >= 0; i--) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({ key: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), label: d.toLocaleDateString("nl-NL", { month: "short", year: "2-digit" }), total: 0 });
+  }
+  entries.forEach(function (e) {
+    var key = (e.date || "").slice(0, 7);
+    var bucket = buckets.find(function (b) { return b.key === key; });
+    if (bucket) bucket.total += (e.workMinutes || 0) / 60;
+  });
+  return buckets;
+}
+
+function oneDecimal(v) { return v.toFixed(1); }
+
 function renderChart(list) {
   var w = 560, h = 120, pad = 20;
   var sorted = list.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
@@ -177,6 +215,18 @@ function render() {
 
   html += '<div class="home-card home-card-wide"><div class="home-card-title">Trend (laatste 14 dagen)</div>';
   html += renderChart(entriesInLastDays(14));
+  html += "</div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Gem. energie per maand</div>';
+  html += renderBars(monthlyAverage("energy", 6), "total", "label", { format: oneDecimal, color: "#3b82f6", max: 10 });
+  html += "</div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Gem. productiviteit per maand</div>';
+  html += renderBars(monthlyAverage("productivity", 6), "total", "label", { format: oneDecimal, color: "#10b981", max: 10 });
+  html += "</div>";
+
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Werktijd per maand (uur)</div>';
+  html += renderBars(monthlyWorkHours(6).filter(function (b) { return b.total > 0; }), "total", "label", { format: function (v) { return v.toFixed(1) + " u"; }, color: "#f59e0b" });
   html += "</div>";
 
   html += '<div class="home-card"><div class="home-card-title">Deze week</div>';

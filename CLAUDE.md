@@ -138,19 +138,38 @@ Nav is nu **Home / Productivity System / Health / Suerte**.
   productiviteit 1-10/wektijd/notitie, één entry per dag) + werksessie-
   tracking (start/stop-knop, telt minuten op bij de dag van vandaag) +
   analytics (week-/maandgemiddelden, piekdag, een simpele inline-SVG
-  trendlijn over de laatste 14 dagen voor energie/productiviteit).
+  trendlijn over de laatste 14 dagen voor energie/productiviteit, plus
+  staafdiagrammen — via `js/barChart.js` — voor gem. energie/
+  productiviteit per maand (vaste 1-10-schaal, laatste 6 mnd, lege
+  maanden overgeslagen) en werktijd per maand in uren).
+- **`js/barChart.js`**: kleine gedeelde staafdiagram-renderer
+  (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door zowel
+  Suerte (financieel) als Health — voorkomt dat dezelfde bar-HTML op
+  meerdere plekken gedupliceerd wordt.
 - **`js/section-suerte.js`** (business-hub):
-  - **Financial** (`?target=financial`): Revolut-PDF uploaden → client-side
-    uitgelezen met pdf.js (dynamisch geladen vanaf cdnjs, alleen bij
-    gebruik) → regel-voor-regel gematcht op een datum+bedrag-patroon →
-    automatische categorie-gok op basis van trefwoorden (boodschappen/
-    vervoer/abonnementen/etc., anders "Overig"). **Ongetest tegen een
-    echt Revolut-bestand** — dit is best-effort tekstherkenning, de
-    kolom-uitlijning van een PDF kan onvoorspelbaar zijn. Vraag Floris om
-    een echt bestand te proberen en meld wat er misgaat, dan verfijn ik
-    de regex. Handmatig een transactie toevoegen werkt sowieso altijd als
-    fallback. Toont grootste uitgavecategorieën en inkomstenbronnen als
-    staafdiagrammen.
+  - **Financial** (`?target=financial`): bank-statement-PDF's uploaden
+    (meerdere bestanden tegelijk, van willekeurig welk jaar door elkaar)
+    → client-side uitgelezen met pdf.js (dynamisch geladen vanaf cdnjs,
+    alleen bij gebruik) → regel-voor-regel gematcht op een datum+bedrag-
+    patroon → datum genormaliseerd naar ISO (`toIsoDate()`) zodat
+    transacties uit verschillende jaren/exports op dezelfde manier
+    gegroepeerd kunnen worden → automatische categorie-gok op basis van
+    trefwoorden (boodschappen/vervoer/abonnementen/etc., anders
+    "Overig"). Dubbele transacties (zelfde datum+omschrijving+bedrag,
+    `txFingerprint()`) worden bij upload automatisch overgeslagen, dus
+    dezelfde periode nog eens uploaden of overlappende jaaroverzichten
+    geeft geen dubbele boekingen. **Ongetest tegen een echt bank-PDF-
+    bestand** — dit is best-effort tekstherkenning, de kolom-uitlijning
+    van een PDF kan onvoorspelbaar zijn. Vraag Floris om een echt bestand
+    te proberen en meld wat er misgaat, dan verfijn ik de regex.
+    Handmatig een transactie toevoegen werkt sowieso altijd als fallback.
+    Analytics (allemaal staafdiagrammen via het gedeelde `js/barChart.js`):
+    grootste uitgavecategorieën/inkomstenbronnen all-time, uitgaven per
+    jaar, uitgaven per maand (laatste 12 mnd), grootste categorieën
+    afgelopen jaar, en een "Mogelijk te besparen"-lijst
+    (`recurringCandidates()` — omschrijvingen die in 3+ losse maanden
+    terugkomen, met geschat maand-/jaarbedrag; typisch abonnementen of
+    terugkerende kosten die je bent vergeten).
   - **Clients** (`?target=suerte`): simpele naam/project/status-tracker
     (Actief/On hold/Afgerond).
 - **Niet gebouwd, bewust**: hoeveel Claude-gebruik (quota/reset-tijd) er
