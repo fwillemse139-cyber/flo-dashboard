@@ -7,6 +7,7 @@ var container = null;
 var entries = [];
 var notionAvailable = false;
 var localEditedSinceMount = false;
+var saveStatus = "";
 
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -79,6 +80,7 @@ function upsertEntry(patch) {
   }
   localEditedSinceMount = true;
   persist();
+  saveStatus = "Opgeslagen om " + new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
 }
 
 // ---------- Analytics ----------
@@ -203,8 +205,15 @@ function render() {
   html += '<label class="field-label">Productiviteit (1-10)</label><input class="field" id="hl-productivity" type="number" min="1" max="10" value="' + (todayEntry.productivity != null ? todayEntry.productivity : "") + '">';
   html += '<label class="field-label">Hoe laat opgestaan?</label><input class="field" id="hl-waketime" type="time" value="' + esc(todayEntry.wakeTime || "") + '">';
   html += '<label class="field-label">Waarom / notitie</label><textarea class="field" id="hl-note" style="min-height:60px;">' + esc(todayEntry.note || "") + '</textarea>';
-  html += '<button class="new-task-btn" id="hl-save" style="margin-top:14px;">Opslaan</button>';
+  html += '<div style="display:flex;align-items:center;gap:12px;margin-top:14px;">';
+  html += '<button class="new-task-btn" id="hl-save">Opslaan</button>';
+  html += '<span id="hl-save-status" style="font-size:12px;color:var(--done);font-weight:600;">' + esc(saveStatus) + "</span>";
+  html += "</div>";
   html += "</div></div>";
+
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Logboek (alle dagen)</div>';
+  html += renderLogTable();
+  html += "</div>";
 
   html += '<div class="home-card"><div class="home-card-title">Werksessie</div><div id="health-w-worksession"></div></div>';
 
@@ -234,10 +243,6 @@ function render() {
   html += '<div class="home-line"><span>Gem. energie</span><span class="deadline">' + fmtNum(average(month, "energy")) + '</span></div>';
   html += '<div class="home-line"><span>Gem. productiviteit</span><span class="deadline">' + fmtNum(average(month, "productivity")) + '</span></div>';
   html += '<div class="home-line"><span>Piekdag energie</span><span class="deadline">' + (peakEnergyDay ? esc(peakEnergyDay.date) + " (" + peakEnergyDay.energy + ")" : "—") + '</span></div>';
-  html += "</div>";
-
-  html += '<div class="home-card home-card-wide"><div class="home-card-title">Logboek (alle dagen)</div>';
-  html += renderLogTable();
   html += "</div>";
 
   html += "</div>";
