@@ -35,7 +35,7 @@ aanpak.
 
 Nav: **Home / Productivity System / Health / Finance / Identity**. Van de
 widgets die oorspronkelijk (8 sept 2026) hun eigen nav-item hadden zijn
-Agenda, Tasks, Werksessie, Markets en Connected Tools sindsdien uitsluitend
+Tasks, Werksessie, Markets en Connected Tools sindsdien uitsluitend
 widgets ÓP Home (naast/onder elkaar in een grid) — hun `section-*.js`-
 bestanden bestaan als losse modules met een `init(rootEl)` die in een
 willekeurige container gemonteerd kan worden; Werksessie wordt zowel op
@@ -46,9 +46,20 @@ Home als op Health gemount (zie hieronder).
     categorieën), gesorteerd op datum via een best-effort parser
     (`js/deadlineParser.js`) die de vrije-tekst deadline-velden leest.
     Taken zonder herkenbare datum ("tbd") worden overgeslagen.
-  - **Agenda**: eerstvolgende 5 events, tenzij er meer dan 5 binnen 2 dagen
-    vallen (dan worden juist alle events binnen die 2 dagen getoond).
-    Combineert handmatige events + Apple-agenda-events (zie hieronder).
+  - **Health check-in** (9 sept 2026, op de plek waar eerst Agenda stond):
+    `js/section-health-quicklog.js` — compacte versie van Health's
+    dagelijkse check-in (alleen mood/energie/productiviteit, geen
+    wektijd/notitie/analytics) zodat je 'm in een paar seconden vanaf Home
+    kan invullen zonder naar Health te navigeren. Zelfstandig van
+    `section-health.js` (zelfde patroon als Werksessie) maar deelt
+    dezelfde `flo.health_log`-storage/`?target=health`-Notion-sync, dus
+    een save hier telt gewoon mee in Health's eigen logboek/analytics.
+    **Agenda is losgekoppeld van Home** om plek te maken (op verzoek van
+    Floris) — `js/section-agenda.js` en `?target=agenda` in
+    `api/notion.js` bestaan nog gewoon (inclusief eventuele al
+    opgeslagen handmatige events in `flo.agenda_events`), maar worden
+    nergens meer gemount. Makkelijk terug te zetten mocht Floris 'm
+    alsnog ergens willen.
   - **Tasks**, **Werksessie**, **Markets**, **Connected Tools**: zelfde
     functionaliteit als op hun eigen pagina, nu als widget (Werksessie
     staat bewust naast Tasks, zodat je 'm direct kan starten/stoppen
@@ -151,6 +162,18 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
   (vaste 1-10-schaal, laatste 6 mnd, lege maanden overgeslagen) en
   werktijd per maand in uren). De werksessie-tracking zelf zit niet meer
   in dit bestand, zie `js/section-worksession.js` hieronder.
+  - **Logboek (9 sept 2026)**: tabel met alle gelogde dagen cijfermatig
+    (datum/mood/energie/productiviteit/opgestaan/werktijd/notitie,
+    nieuwste eerst, met verwijderknop per rij) — staat direct onder het
+    invulformulier, niet onderaan de pagina, zodat je 'm ziet zonder
+    eerst langs alle grafieken te scrollen (Floris zag 'm eerst niet).
+    CSS: `.log-table`/`.table-scroll` in `css/dashboard.css`.
+  - **Zichtbare save-bevestiging (9 sept 2026)**: Floris meldde dat
+    Opslaan "niks deed" — het sloeg in werkelijkheid gewoon op (bevestigd
+    via een live PUT-test + reload), maar er was geen enkele visuele
+    bevestiging, dus het vóelde kapot. Er staat nu een blijvende
+    "Opgeslagen om HH:MM"-tekst naast de knop (`saveStatus`-var, geen
+    fade-out toast — moet zichtbaar blijven ook als je later terugkijkt).
 - **`js/section-worksession.js`**: losse, zelfstandige start/stop-
   werksessie-widget (schrijft naar dezelfde `flo.health_log`-storage/
   `?target=health` als Health, dus het telt gewoon mee in Health's
