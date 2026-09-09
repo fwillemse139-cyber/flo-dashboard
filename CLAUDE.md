@@ -175,14 +175,27 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
     "Opgeslagen om HH:MM"-tekst naast de knop (`saveStatus`-var, geen
     fade-out toast — moet zichtbaar blijven ook als je later terugkijkt).
 - **`js/section-worksession.js`**: losse, zelfstandige start/stop-
-  werksessie-widget (schrijft naar dezelfde `flo.health_log`-storage/
-  `?target=health` als Health, dus het telt gewoon mee in Health's
-  week-/maandanalytics ongeacht vanaf waar de sessie gestart is). Gemount
-  op **twee plekken**: op Home naast de Tasks-widget (zodat je 'm meteen
-  kan aanklikken zonder eerst naar Health te navigeren — op verzoek van
-  Floris, 8 sept 2026) én op de Health-pagina zelf. Beide mounts draaien
-  onafhankelijk van elkaar (eigen 30s-tick voor de live sessieduur), maar
-  delen dezelfde `localStorage`-sleutels dus altijd in sync.
+  werksessie-widget. Gemount op **twee plekken**: op Home naast Tasks
+  (zodat je 'm meteen kan aanklikken zonder eerst naar Health te
+  navigeren — op verzoek van Floris, 8 sept 2026) én op de
+  Health-pagina zelf (met `{ showLog: true }` — zie hieronder). Beide
+  mounts draaien onafhankelijk van elkaar (eigen 30s-tick voor de live
+  sessieduur), maar delen dezelfde `localStorage`-sleutels dus altijd in
+  sync.
+  - **Sessielogboek (9 sept 2026)**: elke start→stop wordt nu ALS LOSSE
+    SESSIE gelogd in `flo.work_sessions` (`?target=worksessions` in
+    `api/notion.js`, nieuwe Notion-pagina "Work Sessions Data") — met
+    starttijd/eindtijd/duur, niet alleen een totaal. Een stop-actie telt
+    daarnaast nog steeds op bij het dagtotaal in Health's eigen
+    `flo.health_log`/`?target=health` (`workMinutes`), zodat Health's
+    bestaande week-/maand-analytics gewoon blijven werken — je kan een
+    dag dus in meerdere stukken loggen (start, pauze, weer start) zonder
+    dat iets overschreven wordt, alles telt op. Op Health (`showLog:
+    true`) verschijnt onder de start/stop-knop een overzicht per dag
+    (nieuwste eerst) met elke losse sessie + een verwijderknop; die
+    houdt het dagtotaal in `flo.health_log` consistent bij het
+    verwijderen van een sessie. Op Home (`showLog` niet gezet) blijft de
+    widget compact — alleen start/stop + dagtotaal, geen logboek.
 - **`js/barChart.js`**: kleine gedeelde staafdiagram-renderer
   (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door zowel
   Suerte (financieel) als Health — voorkomt dat dezelfde bar-HTML op

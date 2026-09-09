@@ -27,7 +27,8 @@ var BLOB_PAGE_IDS = {
   kanban: "3d5b6cf8f8be8177a14ee74f07a4d799",   // "Kanban Data" — Productivity System
   health: "3d5b6cf8f8be812d913ad581287eff11",   // "Health Log Data"
   financial: "3d5b6cf8f8be816691a9c8eeec5cc20d", // "Financial Data"
-  identity: "3d5b6cf8f8be8156a6c2d16e7b67738b"   // "Identity Data"
+  identity: "3d5b6cf8f8be8156a6c2d16e7b67738b",  // "Identity Data"
+  worksessions: "3d6b6cf8f8be81fa9d8cc1a825af2c5d" // "Work Sessions Data" — individuele werksessies
   // "suerte" (Suerte Clients Data) en "coach" (Coach Data) zijn verwijderd
   // — Clients-feature en de AI-coach zijn beide weer weggehaald uit de UI
   // (8 sept 2026, kosten resp. schaalkeuze van Floris). De Notion-pagina's
@@ -158,7 +159,7 @@ export default async function handler(req, res) {
       return;
     }
     if (blobPageId) {
-      var fallback = (target === "kanban" || target === "health") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
+      var fallback = (target === "kanban" || target === "health" || target === "worksessions") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
       if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, fallback) }); return; }
       if (req.method === "PUT") { res.status(200).json(await saveBlob(token, blobPageId, (req.body || {}).data)); return; }
       res.status(405).json({ error: target + " ondersteunt alleen GET/PUT" });

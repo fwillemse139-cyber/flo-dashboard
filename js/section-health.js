@@ -215,7 +215,7 @@ function render() {
   html += renderLogTable();
   html += "</div>";
 
-  html += '<div class="home-card"><div class="home-card-title">Werksessie</div><div id="health-w-worksession"></div></div>';
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Werksessie</div><div id="health-w-worksession"></div></div>';
 
   html += '<div class="home-card home-card-wide"><div class="home-card-title">Trend (laatste 14 dagen)</div>';
   html += renderChart(entriesInLastDays(14));
@@ -249,7 +249,7 @@ function render() {
 
   container.innerHTML = html;
   attachEvents();
-  worksession.init(document.getElementById("health-w-worksession"));
+  worksession.init(document.getElementById("health-w-worksession"), { showLog: true });
 }
 
 function attachEvents() {
