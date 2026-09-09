@@ -106,7 +106,11 @@ async function sendEmail(apiKey, toAddress, toSend) {
 export default async function handler(req, res) {
   var notionToken = process.env.NOTION_TOKEN;
   var resendKey = process.env.RESEND_API_KEY;
-  var toAddress = process.env.REMINDER_EMAIL || "fwillemse139@gmail.com";
+  // ?to=... overschrijdt het standaardadres — puur voor het testen van
+  // afleverbaarheid naar een ander adres (bv. Outlook i.p.v. Gmail),
+  // zonder dat daarvoor een deploy/env-var-wijziging nodig is.
+  var toOverride = (req.query && req.query.to) || (new URL(req.url, "http://x").searchParams.get("to"));
+  var toAddress = toOverride || process.env.REMINDER_EMAIL || "fwillemse139@gmail.com";
   if (!notionToken) { res.status(500).json({ error: "NOTION_TOKEN ontbreekt in Vercel environment variables" }); return; }
   if (!resendKey) { res.status(500).json({ error: "RESEND_API_KEY ontbreekt in Vercel environment variables" }); return; }
 
