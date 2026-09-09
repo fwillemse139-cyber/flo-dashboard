@@ -1,34 +1,35 @@
 // Vercel serverless function — draait dagelijks via Vercel Cron (zie
-// vercel.json's "crons") en stuurt een e-mail (via Resend) als er een
+// vercel.json's "crons") en stuurt een Telegram-bericht als er een
 // openstaande Productivity System-taak is met een deadline die precies
 // over 1 of 2 dagen valt. Mag ook gewoon los aangeroepen worden (GET) om
 // te testen — is idempotent per dag dankzij de dedup-log hieronder.
 //
+// Was eerst e-mail via Resend, maar Resend's testmodus staat alleen
+// mailen naar het eigen account-e-mailadres toe (geen eigen domein
+// aanwezig om te verifiëren) én de mails belandden sowieso in spam vanaf
+// het gedeelde onboarding@resend.dev-domein. Telegram heeft geen van
+// beide problemen: gratis, geen domein/sandbox-beperking, komt gewoon als
+// appnotificatie binnen.
+//
 // Eenmalige setup (Floris):
-//   1. Maak een gratis account op https://resend.com met hetzelfde
-//      e-mailadres waar je de herinneringen op wil ontvangen (in de
-//      gratis/test-modus mag je zonder een eigen domein te verifiëren
-//      alleen naar je eigen Resend-account-e-mailadres mailen — precies
-//      wat we hier nodig hebben).
-//   2. Maak een API-key aan (Resend-dashboard → API Keys) en zet 'm als
-//      env var RESEND_API_KEY in Vercel, zelfde plek als NOTION_TOKEN.
-//   3. Optioneel: zet REMINDER_EMAIL in Vercel als het ontvangende adres
-//      een ander adres moet zijn dan fwillemse139@gmail.com.
+//   1. Open Telegram, zoek "@BotFather", stuur "/newbot" en volg de
+//      stappen (kies een naam + een username die op "bot" eindigt) →
+//      je krijgt een bot-token (vorm: 123456789:AAxxxxxxxxxxxxxxxxxxxxxxx).
+//   2. Zoek "@userinfobot", stuur er een willekeurig bericht naartoe —
+//      hij antwoordt direct met jouw numerieke Telegram-ID. Dat ID is
+//      ook je chat_id voor een direct gesprek met een bot.
+//   3. Zoek je eigen nieuwe bot (de username van stap 1) en stuur 'm
+//      "/start" — verplicht, want een bot mag pas berichten sturen
+//      nadat jij als eerste tegen 'm gepraat hebt.
+//   4. Zet in Vercel (Environment Variables): TELEGRAM_BOT_TOKEN (uit
+//      stap 1) en TELEGRAM_CHAT_ID (uit stap 2).
 import { loadBlob, saveBlob, BLOB_PAGE_IDS } from "./notion.js";
 import { parseDeadline } from "../js/deadlineParser.js";
 
-var RESEND_API_URL = "https://api.resend.com/emails";
-// onboarding@resend.dev is Resend's gedeelde testdomein — geen eigen
-// domeinreputatie, dus mails hiervandaan belanden bij nieuwe ontvangers
-// vaker in spam. Enige echte fix: een eigen domein verifiëren in Resend
-// (DNS-records toevoegen) en van een adres op dat domein versturen. Zolang
-// dat er niet is: Floris moet de eerste mail(s) handmatig als "Niet spam"
-// markeren in Gmail, waarna Gmail dit afzenderadres voortaan vertrouwt.
-var FROM_ADDRESS = "Flo's Dashboard <onboarding@resend.dev>";
 var MAX_SENT_LOG = 300; // voorkomt dat de dedup-lijst onbeperkt groeit
 
-function esc(s) {
-  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function escTg(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function dateOnly(d) {
@@ -42,77 +43,49 @@ function daysUntil(deadline, now) {
   return Math.round((dateOnly(deadline) - dateOnly(now)) / (24 * 60 * 60 * 1000));
 }
 
-function renderEmailHtml(toSend) {
+// Telegram's HTML-parsemodus kent maar een handvol tags (b/i/u/s/a/code/
+// pre) — geen <ul>/<li>/<h3>, dus dit wordt platte tekst met "•" en
+// newlines i.p.v. een lijst-structuur.
+function renderTelegramMessage(toSend) {
   function taskLine(t) {
-    return "<li><strong>" + esc(t.title) + "</strong>" + (t.subject ? " · " + esc(t.subject) : "") + " — " + esc(t.deadline || "") + "</li>";
+    return "• <b>" + escTg(t.title) + "</b>" + (t.subject ? " · " + escTg(t.subject) : "") + " — " + escTg(t.deadline || "");
   }
   var oneDay = toSend.filter(function (x) { return x.diff === 1; });
   var twoDay = toSend.filter(function (x) { return x.diff === 2; });
-  var html = "<div style=\"font-family:sans-serif;color:#111;\">";
+  var lines = ["<b>Deadline-herinnering</b>", ""];
   if (oneDay.length) {
-    html += "<h3>Morgen</h3><ul>" + oneDay.map(function (x) { return taskLine(x.task); }).join("") + "</ul>";
-  }
-  if (twoDay.length) {
-    html += "<h3>Over 2 dagen</h3><ul>" + twoDay.map(function (x) { return taskLine(x.task); }).join("") + "</ul>";
-  }
-  html += "<p style=\"color:#888;font-size:12px;\">Automatisch verzonden vanuit Flo's Dashboard.</p></div>";
-  return html;
-}
-
-// Platte-tekst-versie naast de HTML — spamfilters wantrouwen HTML-only
-// e-mail (zeker vanaf een gedeeld testdomein als onboarding@resend.dev,
-// zie de opmerking bij FROM_ADDRESS), dus dit hoort er altijd bij.
-function renderEmailText(toSend) {
-  function taskLine(t) {
-    return "- " + t.title + (t.subject ? " · " + t.subject : "") + " — " + (t.deadline || "");
-  }
-  var oneDay = toSend.filter(function (x) { return x.diff === 1; });
-  var twoDay = toSend.filter(function (x) { return x.diff === 2; });
-  var lines = [];
-  if (oneDay.length) {
-    lines.push("Morgen:");
+    lines.push("<b>Morgen</b>");
     oneDay.forEach(function (x) { lines.push(taskLine(x.task)); });
     lines.push("");
   }
   if (twoDay.length) {
-    lines.push("Over 2 dagen:");
+    lines.push("<b>Over 2 dagen</b>");
     twoDay.forEach(function (x) { lines.push(taskLine(x.task)); });
-    lines.push("");
   }
-  lines.push("Automatisch verzonden vanuit Flo's Dashboard.");
-  return lines.join("\n");
+  return lines.join("\n").trim();
 }
 
-async function sendEmail(apiKey, toAddress, toSend) {
-  var subject = toSend.length === 1
-    ? "Deadline: " + toSend[0].task.title
-    : "Deadline-herinnering (" + toSend.length + ")";
-  var res = await fetch(RESEND_API_URL, {
+async function sendTelegramMessage(botToken, chatId, text) {
+  var res = await fetch("https://api.telegram.org/bot" + botToken + "/sendMessage", {
     method: "POST",
-    headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: FROM_ADDRESS,
-      to: [toAddress],
-      subject: subject,
-      html: renderEmailHtml(toSend),
-      text: renderEmailText(toSend)
-    })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: "HTML" })
   });
   var data = await res.json();
-  if (!res.ok) throw new Error((data && data.message) || "Resend-fout");
+  if (!res.ok || !data.ok) throw new Error((data && data.description) || "Telegram-fout");
   return data;
 }
 
 export default async function handler(req, res) {
   var notionToken = process.env.NOTION_TOKEN;
-  var resendKey = process.env.RESEND_API_KEY;
-  // ?to=... overschrijdt het standaardadres — puur voor het testen van
-  // afleverbaarheid naar een ander adres (bv. Outlook i.p.v. Gmail),
-  // zonder dat daarvoor een deploy/env-var-wijziging nodig is.
-  var toOverride = (req.query && req.query.to) || (new URL(req.url, "http://x").searchParams.get("to"));
-  var toAddress = toOverride || process.env.REMINDER_EMAIL || "fwillemse139@gmail.com";
+  var botToken = process.env.TELEGRAM_BOT_TOKEN;
+  // ?chatId=... overschrijdt het standaard chat_id — puur voor het testen
+  // naar een ander Telegram-gesprek zonder env-var-wijziging/deploy.
+  var chatIdOverride = (req.query && req.query.chatId) || (new URL(req.url, "http://x").searchParams.get("chatId"));
+  var chatId = chatIdOverride || process.env.TELEGRAM_CHAT_ID;
   if (!notionToken) { res.status(500).json({ error: "NOTION_TOKEN ontbreekt in Vercel environment variables" }); return; }
-  if (!resendKey) { res.status(500).json({ error: "RESEND_API_KEY ontbreekt in Vercel environment variables" }); return; }
+  if (!botToken) { res.status(500).json({ error: "TELEGRAM_BOT_TOKEN ontbreekt in Vercel environment variables" }); return; }
+  if (!chatId) { res.status(500).json({ error: "TELEGRAM_CHAT_ID ontbreekt in Vercel environment variables" }); return; }
 
   try {
     var tasks = await loadBlob(notionToken, BLOB_PAGE_IDS.kanban, []);
@@ -141,7 +114,7 @@ export default async function handler(req, res) {
     }
     toSend.sort(function (a, b) { return a.diff - b.diff; });
 
-    await sendEmail(resendKey, toAddress, toSend);
+    await sendTelegramMessage(botToken, chatId, renderTelegramMessage(toSend));
 
     var updatedLog = sentLog.concat(toSend.map(function (x) { return x.key; })).slice(-MAX_SENT_LOG);
     await saveBlob(notionToken, BLOB_PAGE_IDS.deadlinereminders, updatedLog);

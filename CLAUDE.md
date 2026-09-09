@@ -135,17 +135,32 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     renderen, dan van oude naar nieuwe positie laten "glijden" met een
     CSS-transform-transitie) i.p.v. abrupt te springen.
 
-## Deadline-herinneringen per e-mail (9 sept 2026)
+## Deadline-herinneringen via Telegram (9 sept 2026, was eerst e-mail)
 
-Op verzoek van Floris: een mailtje als een Productivity System-taak
+Op verzoek van Floris: een bericht als een Productivity System-taak
 (alle categorieën) een deadline heeft die precies over 2 dagen of over
-1 dag valt. Hij vroeg ook naar WhatsApp — dat is **niet gebouwd**: de
-WhatsApp Business API vereist een Meta-bedrijfsaccount, template-
-goedkeuring voor door het bedrijf gestarte berichten, en heeft een veel
-grotere opzet/mogelijk-kosten-profiel dan e-mail. Alleen e-mail is
-gebouwd; als Floris WhatsApp alsnog wil, eerst opnieuw afwegen of hij
-die opzet + eventuele kosten ervoor over heeft (zie "Voorkeuren"
-hieronder — hij accepteert geen doorlopende kosten).
+1 dag valt.
+
+**Kanaal-geschiedenis** (belangrijk om niet opnieuw dezelfde doodlopende
+paden in te lopen):
+- **WhatsApp**: expliciet afgewezen, niet gebouwd — de WhatsApp Business
+  API vereist een Meta-bedrijfsaccount, template-goedkeuring voor door
+  het bedrijf gestarte berichten, en is niet gegarandeerd gratis. Als
+  Floris dit ooit alsnog wil: eerst opnieuw afwegen of hij die opzet +
+  eventuele kosten ervoor over heeft (zie "Voorkeuren" hieronder — hij
+  accepteert geen doorlopende kosten).
+- **E-mail (Resend)**: eerst gebouwd, daarna **volledig vervangen**.
+  Liep vast op twee dingen: (1) Resend's testmodus staat zonder eigen
+  geverifieerd domein alleen mailen naar het eigen Resend-account-adres
+  toe — een `?to=`-override naar Floris' Outlook-adres gaf letterlijk
+  een Resend-foutmelding terug ("You can only send testing emails to
+  your own email address"); (2) mails vanaf het gedeelde
+  `onboarding@resend.dev`-testdomein kwamen sowieso in spam terecht,
+  zelfs na een platte-tekst-versie toe te voegen. Een eigen domein
+  verifiëren was de enige structurele fix, maar Floris heeft er geen —
+  dus overgestapt op Telegram, dat geen van beide problemen heeft.
+- **Telegram** (huidige, werkende oplossing): gratis, geen sandbox-
+  beperking, geen spamfilter — komt gewoon als appnotificatie binnen.
 
 - **`api/deadline-reminders.js`**: Vercel serverless function, draait
   dagelijks via **Vercel Cron** (`vercel.json`'s `"crons"`, `0 7 * * *`
@@ -157,37 +172,31 @@ hieronder — hij accepteert geen doorlopende kosten).
   client-side-code — kan omdat het een pure functie is, geen DOM).
   Kalenderdag-verschil (`daysUntil()`, niet ruwe uren) bepaalt of een
   taak "over 2 dagen" of "over 1 dag" valt, ongeacht hoe laat de cron
-  precies draait. Matches worden gebundeld in **één** e-mail (via
-  Resend) i.p.v. losse mailtjes per taak.
-  - **Dedup**: welke `taskId:daysBefore:datum`-combinaties al gemaild
-    zijn staat in een nieuwe Notion-blob-pagina "Deadline Reminders
-    Sent" (`BLOB_PAGE_IDS.deadlinereminders`), gepruned tot de laatste
-    300 entries. Voorkomt dubbele mails als de cron per ongeluk 2x op
+  precies draait. Matches worden gebundeld in **één** Telegram-bericht
+  (via `sendTelegramMessage()`, Telegram's `sendMessage`-endpoint met
+  `parse_mode: "HTML"` — let op: Telegram's HTML-subset kent geen
+  `<ul>/<li>/<h3>`, dus `renderTelegramMessage()` gebruikt platte regels
+  met "•" en `<b>` i.p.v. de lijst-opmaak die de oude e-mail-versie had).
+  - **Dedup**: welke `taskId:daysBefore:datum`-combinaties al verstuurd
+    zijn staat in de Notion-blob-pagina "Deadline Reminders Sent"
+    (`BLOB_PAGE_IDS.deadlinereminders`), gepruned tot de laatste 300
+    entries. Voorkomt dubbele berichten als de cron per ongeluk 2x op
     een dag draait. De functie mag ook gewoon los aangeroepen worden
     (GET, geen auth nodig behalve de env vars) om te testen — is
-    idempotent per dag dankzij deze log.
-  - **Setup (gedaan, 9 sept 2026)**: Resend-account + `RESEND_API_KEY`
-    staan in Vercel. Live end-to-end geverifieerd met een tijdelijke
-    testtaak (1 dag vooruit) → echte mail kwam aan, testtaak + backup
-    daarna weer teruggezet in Notion. Optioneel: `REMINDER_EMAIL` als env
-    var als het ontvangende adres ooit een ander moet zijn dan
-    `fwillemse139@gmail.com`. Blijft ruim binnen Resend's gratis tier bij
-    dit gebruik (hooguit een paar mails per dag) — geen kosten.
-  - **Spam-kwestie (9 sept 2026)**: mails kwamen bij Floris in spam
-    terecht. Oorzaak: `FROM_ADDRESS` is `onboarding@resend.dev`,
-    Resend's **gedeelde testdomein** — geen eigen domeinreputatie, dus
-    spamfilters wantrouwen het sneller, zeker voor een nieuwe ontvanger.
-    Twee dingen gedaan: (1) een platte-tekst-versie (`renderEmailText()`)
-    wordt nu naast de HTML meegestuurd — spamfilters straffen HTML-only
-    mail af. (2) De **echte, structurele fix vereist een eigen
-    geverifieerd domein** in Resend (DNS-records toevoegen bij een
-    domain-registrar) — dat heeft Floris niet (dit project draait op een
-    gratis `.vercel.app`-subdomein), dus **tot die tijd**: Floris moet de
-    eerste mail(s) handmatig als "Niet spam" markeren in Gmail, waarna
-    Gmail dit afzenderadres voor hem persoonlijk voortaan vertrouwt (dit
-    is puur zijn eigen inbox, dus dat is genoeg — geen derden die de mail
-    ontvangen). Als hij ooit een eigen domein aanschaft/heeft, is
-    domeinverificatie in Resend de robuustere oplossing.
+    idempotent per dag dankzij deze log. `?chatId=...` overschrijdt het
+    standaard chat_id voor het testen naar een ander Telegram-gesprek
+    zonder deploy.
+  - **Setup (Floris, nog te doen)**: (1) Telegram → zoek **@BotFather** →
+    `/newbot` → volg de stappen → bot-token. (2) Zoek **@userinfobot** →
+    stuur een bericht → hij antwoordt met je numerieke Telegram-ID (=
+    chat_id voor een 1-op-1 gesprek met een bot). (3) Zoek je eigen
+    nieuwe bot en stuur 'm `/start` (verplicht — een bot mag pas
+    berichten sturen nadat de gebruiker als eerste heeft geschreven).
+    (4) Zet `TELEGRAM_BOT_TOKEN` en `TELEGRAM_CHAT_ID` als env vars in
+    Vercel. Volledig gratis, geen limiet die hierbij relevant wordt.
+  - **Opruimen**: `RESEND_API_KEY` (en evt. `REMINDER_EMAIL`) staan nog
+    als ongebruikte env vars in Vercel sinds de overstap — mogen weg,
+    maar doen verder geen kwaad als Floris ze laat staan.
 - **`api/notion.js`** (3 targets):
   - `?target=kanban`: Productivity System (Personal/Academic/Business).
     Slaat het HELE `state.tasks`-array op als JSON in één code-block op
