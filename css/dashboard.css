@@ -189,3 +189,11 @@ a{color:inherit;}
 .bar-track{flex:1;background:var(--surface-hover);border-radius:4px;height:8px;overflow:hidden;}
 .bar-fill{height:100%;background:var(--primary);border-radius:4px;}
 .bar-value{width:70px;text-align:right;flex-shrink:0;color:var(--text);font-weight:600;}
+
+/* ---------- Logboek-tabel (Health) ---------- */
+.table-scroll{overflow-x:auto;}
+.log-table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap;}
+.log-table th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:6px 10px;border-bottom:1px solid var(--border-soft);}
+.log-table td{padding:8px 10px;border-bottom:1px solid var(--border-soft);}
+.log-table tr:last-child td{border-bottom:none;}
+.log-table td.log-note{white-space:normal;min-width:160px;color:var(--muted);}

@@ -62,6 +62,13 @@ function getEntry(date) {
   return entries.find(function (e) { return e.date === date; });
 }
 
+function removeEntry(date) {
+  entries = entries.filter(function (e) { return e.date !== date; });
+  localEditedSinceMount = true;
+  persist();
+  render();
+}
+
 function upsertEntry(patch) {
   var date = todayStr();
   var existing = getEntry(date);
@@ -151,6 +158,27 @@ function renderChart(list) {
   return svg;
 }
 
+function renderLogTable() {
+  var sorted = entries.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+  if (sorted.length === 0) return '<div class="empty-drop">Nog geen dagen gelogd</div>';
+  var html = '<div class="table-scroll"><table class="log-table">';
+  html += "<thead><tr><th>Datum</th><th>Mood</th><th>Energie</th><th>Productiviteit</th><th>Opgestaan</th><th>Werktijd</th><th>Notitie</th><th></th></tr></thead><tbody>";
+  sorted.forEach(function (e) {
+    html += "<tr>";
+    html += "<td>" + esc(e.date) + "</td>";
+    html += "<td>" + esc(e.mood || "—") + "</td>";
+    html += "<td>" + (e.energy != null ? e.energy : "—") + "</td>";
+    html += "<td>" + (e.productivity != null ? e.productivity : "—") + "</td>";
+    html += "<td>" + esc(e.wakeTime || "—") + "</td>";
+    html += "<td>" + (e.workMinutes ? e.workMinutes + " min" : "—") + "</td>";
+    html += '<td class="log-note">' + esc(e.note || "") + "</td>";
+    html += '<td><button class="close-btn" data-action="remove-entry" data-date="' + esc(e.date) + '">×</button></td>';
+    html += "</tr>";
+  });
+  html += "</tbody></table></div>";
+  return html;
+}
+
 function render() {
   if (!container) return;
   var today = todayStr();
@@ -208,6 +236,10 @@ function render() {
   html += '<div class="home-line"><span>Piekdag energie</span><span class="deadline">' + (peakEnergyDay ? esc(peakEnergyDay.date) + " (" + peakEnergyDay.energy + ")" : "—") + '</span></div>';
   html += "</div>";
 
+  html += '<div class="home-card home-card-wide"><div class="home-card-title">Logboek (alle dagen)</div>';
+  html += renderLogTable();
+  html += "</div>";
+
   html += "</div>";
 
   container.innerHTML = html;
@@ -230,4 +262,7 @@ function attachEvents() {
       render();
     });
   }
+  app.querySelectorAll('[data-action="remove-entry"]').forEach(function (el) {
+    el.addEventListener("click", function () { removeEntry(el.getAttribute("data-date")); });
+  });
 }
