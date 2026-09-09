@@ -29,13 +29,18 @@ export var EXCHANGES = [
   }
 ];
 
-// Confirmed instruments (4 — geen 5e opgegeven). Tickers geverifieerd
-// tegen Twelve Data's symbol-search endpoint (8 sept 2026).
+// Instrumenten-lijst (9 sept 2026: IS3N eruit, SK Hynix/Alphabet/ASML/
+// Mastercard/Visa erbij, op verzoek van Floris). Ticker-keys hier moeten
+// exact overeenkomen met de keys in api/quotes.js's SYMBOL_MAP.
 export var TICKERS = [
   { ticker: "SEC0", display_name: "iShares MSCI Global Semiconductors UCITS ETF (Acc)" },
-  { ticker: "IS3N", display_name: "iShares Core MSCI EM IMI UCITS ETF (Acc)" },
   { ticker: "SNDK", display_name: "SanDisk Corp" },
-  { ticker: "VUAA", display_name: "Vanguard S&P 500 UCITS ETF (Acc)" }
+  { ticker: "VUAA", display_name: "Vanguard S&P 500 UCITS ETF (Acc)" },
+  { ticker: "HYNIX", display_name: "SK Hynix" },
+  { ticker: "GOOGL", display_name: "Alphabet" },
+  { ticker: "ASML", display_name: "ASML" },
+  { ticker: "MA", display_name: "Mastercard" },
+  { ticker: "V", display_name: "Visa" }
 ];
 
 function getOffsetMinutes(timeZone, atDate) {

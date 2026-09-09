@@ -89,10 +89,18 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
 - **`api/quotes.js`**: haalt koersen op via Yahoo Finance's publieke
   (niet-officiële) chart-endpoint, **live en werkend, geen API-key nodig**.
   Eerst geprobeerd met Twelve Data, maar hun gratis tier dekt geen Xetra
-  (de 3 Europese UCITS ETF's gaven een "upgrade to Grow/Venture"-fout) —
-  Yahoo's endpoint dekt alle 4 tickers (SEC0.DE, IS3N.DE, VUAA.DE, SNDK)
-  gratis. Kanttekening: dit is geen officiële/gedocumenteerde API, kan in
-  theorie zonder aankondiging wijzigen — bij problemen eerst hier kijken.
+  (de Europese UCITS ETF's gaven een "upgrade to Grow/Venture"-fout) —
+  Yahoo's endpoint dekt alle instrumenten gratis. Kanttekening: dit is
+  geen officiële/gedocumenteerde API, kan in theorie zonder aankondiging
+  wijzigen — bij problemen eerst hier kijken.
+  - **Instrumenten (9 sept 2026, IS3N vervangen)**: SEC0.DE, SNDK, VUAA.DE
+    (ongewijzigd) + SK Hynix (`000660.KS`), Alphabet (`GOOGL`), ASML
+    (`ASML.AS`), Mastercard (`MA`), Visa (`V`) — alle 5 nieuwe rechtstreeks
+    tegen Yahoo's chart-endpoint geverifieerd voor het pushen. Ticker-keys
+    in `SYMBOL_MAP` (dit bestand) en `TICKERS` in `js/marketsCore.js`
+    moeten exact hetzelfde zijn — dat is waar `section-markets.js` de
+    quote (uit `/api/quotes`) aan de display-naam (uit `marketsCore.js`)
+    koppelt.
 - **`api/notion.js`** (3 targets):
   - `?target=kanban`: Productivity System (Personal/Academic/Business).
     Slaat het HELE `state.tasks`-array op als JSON in één code-block op

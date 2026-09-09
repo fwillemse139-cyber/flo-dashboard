@@ -1,12 +1,19 @@
 // Vercel serverless function — haalt koersen op via Yahoo Finance's
 // publieke (niet-officiële) chart-endpoint. Geen API-key nodig — dekt ook
 // Xetra-genoteerde UCITS ETF's, in tegenstelling tot Twelve Data's gratis
-// tier. Geverifieerd tegen alle 4 instrumenten (8 sept 2026).
+// tier. Ticker-keys hier moeten exact overeenkomen met TICKERS in
+// js/marketsCore.js. IS3N is eruit, 5 nieuwe instrumenten erbij (9 sept
+// 2026, op verzoek van Floris) — nog niet stuk-voor-stuk live geverifieerd
+// zoals de eerste 4 destijds, dus bij problemen hier eerst kijken.
 var SYMBOL_MAP = {
   SEC0: { query: "SEC0.DE", display_name: "iShares MSCI Global Semiconductors UCITS ETF (Acc)" },
-  IS3N: { query: "IS3N.DE", display_name: "iShares Core MSCI EM IMI UCITS ETF (Acc)" },
   SNDK: { query: "SNDK", display_name: "SanDisk Corp" },
-  VUAA: { query: "VUAA.DE", display_name: "Vanguard S&P 500 UCITS ETF (Acc)" }
+  VUAA: { query: "VUAA.DE", display_name: "Vanguard S&P 500 UCITS ETF (Acc)" },
+  HYNIX: { query: "000660.KS", display_name: "SK Hynix" },
+  GOOGL: { query: "GOOGL", display_name: "Alphabet" },
+  ASML: { query: "ASML.AS", display_name: "ASML" },
+  MA: { query: "MA", display_name: "Mastercard" },
+  V: { query: "V", display_name: "Visa" }
 };
 
 export default async function handler(req, res) {
