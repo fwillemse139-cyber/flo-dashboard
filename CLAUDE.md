@@ -166,16 +166,28 @@ hieronder — hij accepteert geen doorlopende kosten).
     een dag draait. De functie mag ook gewoon los aangeroepen worden
     (GET, geen auth nodig behalve de env vars) om te testen — is
     idempotent per dag dankzij deze log.
-  - **Eenmalige setup (Floris, nog te doen)**: maak een gratis account
-    op https://resend.com met hetzelfde e-mailadres waarop je de
-    herinneringen wil ontvangen (in test-modus mag je zonder eigen
-    domein te verifiëren alleen naar je eigen account-e-mailadres
-    mailen — precies genoeg hiervoor), maak een API-key aan, en zet 'm
-    als env var `RESEND_API_KEY` in Vercel (zelfde plek als
-    `NOTION_TOKEN`). Optioneel: `REMINDER_EMAIL` als env var als het
-    andere adres moet zijn dan `fwillemse139@gmail.com`. Blijft ruim
-    binnen Resend's gratis tier bij dit gebruik (hooguit een paar mails
-    per dag) — geen kosten.
+  - **Setup (gedaan, 9 sept 2026)**: Resend-account + `RESEND_API_KEY`
+    staan in Vercel. Live end-to-end geverifieerd met een tijdelijke
+    testtaak (1 dag vooruit) → echte mail kwam aan, testtaak + backup
+    daarna weer teruggezet in Notion. Optioneel: `REMINDER_EMAIL` als env
+    var als het ontvangende adres ooit een ander moet zijn dan
+    `fwillemse139@gmail.com`. Blijft ruim binnen Resend's gratis tier bij
+    dit gebruik (hooguit een paar mails per dag) — geen kosten.
+  - **Spam-kwestie (9 sept 2026)**: mails kwamen bij Floris in spam
+    terecht. Oorzaak: `FROM_ADDRESS` is `onboarding@resend.dev`,
+    Resend's **gedeelde testdomein** — geen eigen domeinreputatie, dus
+    spamfilters wantrouwen het sneller, zeker voor een nieuwe ontvanger.
+    Twee dingen gedaan: (1) een platte-tekst-versie (`renderEmailText()`)
+    wordt nu naast de HTML meegestuurd — spamfilters straffen HTML-only
+    mail af. (2) De **echte, structurele fix vereist een eigen
+    geverifieerd domein** in Resend (DNS-records toevoegen bij een
+    domain-registrar) — dat heeft Floris niet (dit project draait op een
+    gratis `.vercel.app`-subdomein), dus **tot die tijd**: Floris moet de
+    eerste mail(s) handmatig als "Niet spam" markeren in Gmail, waarna
+    Gmail dit afzenderadres voor hem persoonlijk voortaan vertrouwt (dit
+    is puur zijn eigen inbox, dus dat is genoeg — geen derden die de mail
+    ontvangen). Als hij ooit een eigen domein aanschaft/heeft, is
+    domeinverificatie in Resend de robuustere oplossing.
 - **`api/notion.js`** (3 targets):
   - `?target=kanban`: Productivity System (Personal/Academic/Business).
     Slaat het HELE `state.tasks`-array op als JSON in één code-block op

@@ -18,6 +18,12 @@ import { loadBlob, saveBlob, BLOB_PAGE_IDS } from "./notion.js";
 import { parseDeadline } from "../js/deadlineParser.js";
 
 var RESEND_API_URL = "https://api.resend.com/emails";
+// onboarding@resend.dev is Resend's gedeelde testdomein — geen eigen
+// domeinreputatie, dus mails hiervandaan belanden bij nieuwe ontvangers
+// vaker in spam. Enige echte fix: een eigen domein verifiëren in Resend
+// (DNS-records toevoegen) en van een adres op dat domein versturen. Zolang
+// dat er niet is: Floris moet de eerste mail(s) handmatig als "Niet spam"
+// markeren in Gmail, waarna Gmail dit afzenderadres voortaan vertrouwt.
 var FROM_ADDRESS = "Flo's Dashboard <onboarding@resend.dev>";
 var MAX_SENT_LOG = 300; // voorkomt dat de dedup-lijst onbeperkt groeit
 
@@ -53,6 +59,30 @@ function renderEmailHtml(toSend) {
   return html;
 }
 
+// Platte-tekst-versie naast de HTML — spamfilters wantrouwen HTML-only
+// e-mail (zeker vanaf een gedeeld testdomein als onboarding@resend.dev,
+// zie de opmerking bij FROM_ADDRESS), dus dit hoort er altijd bij.
+function renderEmailText(toSend) {
+  function taskLine(t) {
+    return "- " + t.title + (t.subject ? " · " + t.subject : "") + " — " + (t.deadline || "");
+  }
+  var oneDay = toSend.filter(function (x) { return x.diff === 1; });
+  var twoDay = toSend.filter(function (x) { return x.diff === 2; });
+  var lines = [];
+  if (oneDay.length) {
+    lines.push("Morgen:");
+    oneDay.forEach(function (x) { lines.push(taskLine(x.task)); });
+    lines.push("");
+  }
+  if (twoDay.length) {
+    lines.push("Over 2 dagen:");
+    twoDay.forEach(function (x) { lines.push(taskLine(x.task)); });
+    lines.push("");
+  }
+  lines.push("Automatisch verzonden vanuit Flo's Dashboard.");
+  return lines.join("\n");
+}
+
 async function sendEmail(apiKey, toAddress, toSend) {
   var subject = toSend.length === 1
     ? "Deadline: " + toSend[0].task.title
@@ -60,7 +90,13 @@ async function sendEmail(apiKey, toAddress, toSend) {
   var res = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM_ADDRESS, to: [toAddress], subject: subject, html: renderEmailHtml(toSend) })
+    body: JSON.stringify({
+      from: FROM_ADDRESS,
+      to: [toAddress],
+      subject: subject,
+      html: renderEmailHtml(toSend),
+      text: renderEmailText(toSend)
+    })
   });
   var data = await res.json();
   if (!res.ok) throw new Error((data && data.message) || "Resend-fout");
