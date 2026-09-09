@@ -101,15 +101,20 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     moeten exact hetzelfde zijn — dat is waar `section-markets.js` de
     quote (uit `/api/quotes`) aan de display-naam (uit `marketsCore.js`)
     koppelt.
-  - **Eigen valuta per instrument, geen omrekening (9 sept 2026)**: eerst
-    geprobeerd om alles zowel in EUR als USD te tonen (`eur_price`/
-    `usd_price`, omgerekend via 2 Yahoo FX-tickers) — Floris vond dat
+  - **Eigen valuta per instrument, gerichte omrekening waar gevraagd
+    (9 sept 2026)**: eerst geprobeerd om alles zowel in EUR als USD te
+    tonen (omgerekend via 2 Yahoo FX-tickers) — Floris vond dat
     onjuist/rommelig aanvoelen en wilde gewoon de eigen, echte valuta per
-    instrument: `currency` van Yahoo direct gebruikt (`formatPrice()` in
-    `js/section-markets.js`, `€`/`$`/`₩` per valuta). De ETF's + ASML zijn
-    dus EUR (Xetra/Euronext), de losse Amerikaanse aandelen USD, SK Hynix
-    KRW (bewust niet naar dollar geforceerd — dat zou de prijs verkeerd
-    voorstellen).
+    instrument (`formatPrice()` in `js/section-markets.js`, `€`/`$`/`₩`
+    per valuta). SK Hynix stond dus eerst in KRW, maar Floris wilde die
+    toch liever in dollar — `SYMBOL_MAP.HYNIX.convertToUsd: true` in
+    `api/quotes.js` rekent 'm om via een live USD/KRW-koers
+    (`FX_TICKERS`/`usdRates`, zelfde "hoeveel van deze valuta is 1 USD
+    waard"-patroon als de eerder teruggedraaide EUR+USD-poging, nu alleen
+    ingezet waar het expliciet gevraagd is). De ETF's + ASML blijven EUR
+    (Xetra/Euronext), de losse Amerikaanse aandelen blijven USD.
+    Percentage-verandering wordt nooit omgerekend — die is
+    valuta-onafhankelijk.
   - **Percentage + laatst bijgewerkt (9 sept 2026)**: `pct_change` is
     Yahoo's `regularMarketChangePercent` — dat is altijd t.o.v. de vorige
     sluitingskoers, nooit intraday-vanaf-nu; dit staat nu als "% = sinds
