@@ -101,6 +101,22 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     moeten exact hetzelfde zijn — dat is waar `section-markets.js` de
     quote (uit `/api/quotes`) aan de display-naam (uit `marketsCore.js`)
     koppelt.
+  - **EUR + USD naast elkaar (9 sept 2026)**: elke koers komt in zijn
+    eigen valuta binnen (EUR/USD/KRW) — de functie haalt er ook 2
+    wisselkoersen bij (`FX_TICKERS`: Yahoo's `EUR=X`/`KRW=X`, "hoeveel van
+    die valuta is 1 USD waard") en rekent via USD als spilvaluta om naar
+    zowel `eur_price` als `usd_price` per quote (`toEur()`/`toUsd()`).
+    `section-markets.js` toont beide naast elkaar ("€X · $Y"). Nieuwe
+    valuta toevoegen: gewoon een entry aan `FX_TICKERS` toevoegen, de
+    rest werkt vanzelf via dezelfde USD-omweg.
+  - **Percentage + laatst bijgewerkt (9 sept 2026)**: `pct_change` is
+    Yahoo's `regularMarketChangePercent` — dat is altijd t.o.v. de vorige
+    sluitingskoers, nooit intraday-vanaf-nu; dit staat nu als "% = sinds
+    vorige sluiting" boven de tickerlijst i.p.v. per rij herhaald (te
+    druk anders). De response heeft ook een top-level `updated_at`
+    (moment van de server-fetch) die als "Koersen bijgewerkt om HH:MM"
+    getoond wordt — let op: door de `s-maxage=300`-cache kan de
+    daadwerkelijke koers zelf tot 5 min ouder zijn dan dit tijdstip.
 - **`api/notion.js`** (3 targets):
   - `?target=kanban`: Productivity System (Personal/Academic/Business).
     Slaat het HELE `state.tasks`-array op als JSON in één code-block op

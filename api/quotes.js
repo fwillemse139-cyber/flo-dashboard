@@ -16,29 +16,70 @@ var SYMBOL_MAP = {
   V: { query: "V", display_name: "Visa" }
 };
 
+// Wisselkoersen (9 sept 2026, op verzoek van Floris: elke koers ook in
+// EUR/USD tonen naast de eigen valuta). Yahoo's "X=X"-tickers geven steeds
+// hoeveel van die valuta 1 USD waard is — dus USD is de spilvaluta waar
+// alles doorheen omgerekend wordt.
+var FX_TICKERS = { EUR: "EUR=X", KRW: "KRW=X" };
+
+async function fetchYahoo(symbol) {
+  var r = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol), {
+    headers: { "User-Agent": "Mozilla/5.0" }
+  });
+  var data = await r.json();
+  var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+  return meta;
+}
+
+function toUsd(price, currency, usdPerUnit) {
+  if (currency === "USD") return price;
+  var rate = usdPerUnit[currency]; // hoeveel <currency> is 1 USD waard
+  if (!rate) return null;
+  return price / rate;
+}
+
+function toEur(price, currency, usdPerUnit) {
+  if (currency === "EUR") return price;
+  var usd = toUsd(price, currency, usdPerUnit);
+  if (usd == null) return null;
+  var usdToEur = usdPerUnit.EUR; // 1 USD = zoveel EUR
+  if (!usdToEur) return null;
+  return usd * usdToEur;
+}
+
 export default async function handler(req, res) {
   var results = {};
   var errors = [];
+  var usdPerUnit = {}; // bv. usdPerUnit.EUR = hoeveel EUR is 1 USD waard
+
+  await Promise.all(Object.keys(FX_TICKERS).map(async function (currency) {
+    try {
+      var meta = await fetchYahoo(FX_TICKERS[currency]);
+      if (meta && meta.regularMarketPrice != null) usdPerUnit[currency] = meta.regularMarketPrice;
+    } catch (e) {
+      // geen wisselkoers beschikbaar — omrekenen naar die valuta lukt dan niet, origineel blijft gewoon staan
+    }
+  }));
 
   await Promise.all(Object.keys(SYMBOL_MAP).map(async function (ticker) {
     var cfg = SYMBOL_MAP[ticker];
     try {
-      var r = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(cfg.query), {
-        headers: { "User-Agent": "Mozilla/5.0" }
-      });
-      var data = await r.json();
-      var meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+      var meta = await fetchYahoo(cfg.query);
       if (!meta || meta.regularMarketPrice == null) {
-        errors.push({ ticker: ticker, error: (data.chart && data.chart.error && data.chart.error.description) || "no data" });
+        errors.push({ ticker: ticker, error: "no data" });
         return;
       }
+      var price = meta.regularMarketPrice;
+      var currency = meta.currency || null;
       results[ticker] = {
         ticker: ticker,
         display_name: cfg.display_name,
-        last_price: meta.regularMarketPrice,
+        last_price: price,
+        currency: currency,
+        eur_price: currency ? toEur(price, currency, usdPerUnit) : null,
+        usd_price: currency ? toUsd(price, currency, usdPerUnit) : null,
         pct_change: meta.regularMarketChangePercent,
-        currency: meta.currency || null,
-        updated_at: new Date().toISOString()
+        pct_change_since: "vorige sluiting"
       };
     } catch (err) {
       errors.push({ ticker: ticker, error: String(err) });
@@ -46,5 +87,5 @@ export default async function handler(req, res) {
   }));
 
   res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
-  res.status(200).json({ quotes: results, errors: errors });
+  res.status(200).json({ quotes: results, errors: errors, updated_at: new Date().toISOString() });
 }
