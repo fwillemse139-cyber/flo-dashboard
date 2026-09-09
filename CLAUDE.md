@@ -30,6 +30,19 @@ aanpak.
 - `js/section-*.js` — één module per sectie (Home, Agenda, Tasks,
   Productivity System, Connected Tools, Markets)
 - `js/marketsCore.js` — gedeelde beursuren-logica (Home en Markets gebruiken 'm allebei)
+- `assets/` — Florens eigen logo-ontwerp (10 sept 2026, aangeleverd als
+  PNG's in Downloads): `logo-f.png` (het zwarte "F"-merk, transparante
+  achtergrond, gebruikt in de sidebar-badge + als bron voor `favicon.png`)
+  en `wordmark.png` (witte "Flo's Dashboard"-wordmark voor op de donkere
+  sidebar). Vervangen: de losse CSS-tekst-"F"/tekst-wordmark en de
+  inline-SVG-placeholder-favicon die er eerst stonden. Logo + wordmark
+  faden/schuiven eenmalig in bij het **openen van de app** (niet bij elke
+  paginawissel) — `js/main.js`'s `renderShell()` wordt bij elke navigatie
+  opnieuw aangeroepen (bouwt de hele shell inclusief brand opnieuw op),
+  dus een module-level `hasRenderedOnce`-vlag bepaalt of de
+  `.brand-animate`-class wordt toegevoegd (alleen de allereerste keer).
+  CSS-animatie zelf staat in `css/dashboard.css` (`@keyframes brand-in`),
+  met een `prefers-reduced-motion`-guard.
 
 ## Pagina's
 

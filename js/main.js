@@ -14,14 +14,21 @@ var NAV_ITEMS = [
 
 var appEl = document.getElementById("app");
 var currentSection = "home";
+var hasRenderedOnce = false;
 
 renderShell();
 
 function renderShell() {
+  // De intro-animatie op het logo/wordmark hoort alleen bij het openen
+  // van de app te spelen, niet bij elke keer dat je van pagina wisselt
+  // (renderShell() bouwt de hele shell inclusief brand opnieuw op).
+  var brandClass = hasRenderedOnce ? "brand" : "brand brand-animate";
+  hasRenderedOnce = true;
+
   appEl.innerHTML =
     '<div class="app-shell">' +
     '<nav class="side-nav">' +
-    '<div class="brand"><div class="logo">F</div><div><div class="wordmark">Flo\'s Dashboard</div><div class="tagline">Life dashboard</div></div></div>' +
+    '<div class="' + brandClass + '"><div class="logo"><img src="assets/logo-f.png" alt="F"></div><div><img class="wordmark-img" src="assets/wordmark.png" alt="Flo\'s Dashboard"><div class="tagline">Life dashboard</div></div></div>' +
     '<div class="nav-list">' +
     NAV_ITEMS.map(function (item) {
       return '<div class="nav-item ' + (item.id === currentSection ? "active" : "") + '" data-section="' + item.id + '">' + item.label + "</div>";
