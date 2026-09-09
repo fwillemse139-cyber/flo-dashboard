@@ -134,6 +134,48 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     herordening opslaan via `getBoundingClientRect()`, nieuwe volgorde
     renderen, dan van oude naar nieuwe positie laten "glijden" met een
     CSS-transform-transitie) i.p.v. abrupt te springen.
+
+## Deadline-herinneringen per e-mail (9 sept 2026)
+
+Op verzoek van Floris: een mailtje als een Productivity System-taak
+(alle categorieën) een deadline heeft die precies over 2 dagen of over
+1 dag valt. Hij vroeg ook naar WhatsApp — dat is **niet gebouwd**: de
+WhatsApp Business API vereist een Meta-bedrijfsaccount, template-
+goedkeuring voor door het bedrijf gestarte berichten, en heeft een veel
+grotere opzet/mogelijk-kosten-profiel dan e-mail. Alleen e-mail is
+gebouwd; als Floris WhatsApp alsnog wil, eerst opnieuw afwegen of hij
+die opzet + eventuele kosten ervoor over heeft (zie "Voorkeuren"
+hieronder — hij accepteert geen doorlopende kosten).
+
+- **`api/deadline-reminders.js`**: Vercel serverless function, draait
+  dagelijks via **Vercel Cron** (`vercel.json`'s `"crons"`, `0 7 * * *`
+  = 07:00 UTC). Leest de Productivity System-taken (`BLOB_PAGE_IDS.kanban`,
+  hergebruikt via named exports uit `api/notion.js`), filtert
+  niet-done/niet-archived taken, en parseert elk `deadline`-veld met
+  dezelfde `parseDeadline()` uit `js/deadlineParser.js` die de
+  Deadlines-widget ook gebruikt (server-side hergebruik van
+  client-side-code — kan omdat het een pure functie is, geen DOM).
+  Kalenderdag-verschil (`daysUntil()`, niet ruwe uren) bepaalt of een
+  taak "over 2 dagen" of "over 1 dag" valt, ongeacht hoe laat de cron
+  precies draait. Matches worden gebundeld in **één** e-mail (via
+  Resend) i.p.v. losse mailtjes per taak.
+  - **Dedup**: welke `taskId:daysBefore:datum`-combinaties al gemaild
+    zijn staat in een nieuwe Notion-blob-pagina "Deadline Reminders
+    Sent" (`BLOB_PAGE_IDS.deadlinereminders`), gepruned tot de laatste
+    300 entries. Voorkomt dubbele mails als de cron per ongeluk 2x op
+    een dag draait. De functie mag ook gewoon los aangeroepen worden
+    (GET, geen auth nodig behalve de env vars) om te testen — is
+    idempotent per dag dankzij deze log.
+  - **Eenmalige setup (Floris, nog te doen)**: maak een gratis account
+    op https://resend.com met hetzelfde e-mailadres waarop je de
+    herinneringen wil ontvangen (in test-modus mag je zonder eigen
+    domein te verifiëren alleen naar je eigen account-e-mailadres
+    mailen — precies genoeg hiervoor), maak een API-key aan, en zet 'm
+    als env var `RESEND_API_KEY` in Vercel (zelfde plek als
+    `NOTION_TOKEN`). Optioneel: `REMINDER_EMAIL` als env var als het
+    andere adres moet zijn dan `fwillemse139@gmail.com`. Blijft ruim
+    binnen Resend's gratis tier bij dit gebruik (hooguit een paar mails
+    per dag) — geen kosten.
 - **`api/notion.js`** (3 targets):
   - `?target=kanban`: Productivity System (Personal/Academic/Business).
     Slaat het HELE `state.tasks`-array op als JSON in één code-block op

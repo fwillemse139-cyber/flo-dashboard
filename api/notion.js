@@ -23,19 +23,23 @@
 var NOTION_VERSION = "2022-06-28";
 var TASKS_PAGE_ID = "27eb6cf8f8be8048b2b8f69d731807bc";
 var AGENDA_DATABASE_ID = "13c79dd716294889ad16a6757bb5b6c7";
-var BLOB_PAGE_IDS = {
+export var BLOB_PAGE_IDS = {
   kanban: "3d5b6cf8f8be8177a14ee74f07a4d799",   // "Kanban Data" — Productivity System
   health: "3d5b6cf8f8be812d913ad581287eff11",   // "Health Log Data"
   financial: "3d5b6cf8f8be816691a9c8eeec5cc20d", // "Financial Data"
   identity: "3d5b6cf8f8be8156a6c2d16e7b67738b",  // "Identity Data"
-  worksessions: "3d6b6cf8f8be81fa9d8cc1a825af2c5d" // "Work Sessions Data" — individuele werksessies
+  worksessions: "3d6b6cf8f8be81fa9d8cc1a825af2c5d", // "Work Sessions Data" — individuele werksessies
+  deadlinereminders: "3d6b6cf8f8be817192e6fec2e665a0ff" // "Deadline Reminders Sent" — welke mail-herinneringen al de deur uit zijn (dedup voor api/deadline-reminders.js)
   // "suerte" (Suerte Clients Data) en "coach" (Coach Data) zijn verwijderd
   // — Clients-feature en de AI-coach zijn beide weer weggehaald uit de UI
   // (8 sept 2026, kosten resp. schaalkeuze van Floris). De Notion-pagina's
   // zelf staan nog ongebruikt in Notion maar worden niet meer aangesproken.
 };
 
-function notionFetch(token, path, options) {
+// Named exports (naast de default handler hieronder) zodat andere
+// serverless functions — zie api/deadline-reminders.js — dezelfde
+// Notion-blob-logica kunnen hergebruiken i.p.v. 'm te dupliceren.
+export function notionFetch(token, path, options) {
   return fetch("https://api.notion.com/v1" + path, Object.assign({
     headers: {
       "Authorization": "Bearer " + token,
@@ -85,7 +89,7 @@ async function findCodeBlockId(token, pageId) {
   return codeBlock ? codeBlock.id : null;
 }
 
-async function loadBlob(token, pageId, fallback) {
+export async function loadBlob(token, pageId, fallback) {
   var res = await notionFetch(token, "/blocks/" + pageId + "/children?page_size=100");
   var data = await res.json();
   if (!res.ok) throw new Error(data.message || "Notion blob list failed");
@@ -105,7 +109,7 @@ function chunkRichText(text) {
   return chunks.map(function (c) { return { type: "text", text: { content: c } }; });
 }
 
-async function saveBlob(token, pageId, value) {
+export async function saveBlob(token, pageId, value) {
   var blockId = await findCodeBlockId(token, pageId);
   if (!blockId) throw new Error("Kon het code-block niet vinden op deze pagina");
   var body = { code: { rich_text: chunkRichText(JSON.stringify(value)), language: "javascript" } };
@@ -159,7 +163,7 @@ export default async function handler(req, res) {
       return;
     }
     if (blobPageId) {
-      var fallback = (target === "kanban" || target === "health" || target === "worksessions") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
+      var fallback = (target === "kanban" || target === "health" || target === "worksessions" || target === "deadlinereminders") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
       if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, fallback) }); return; }
       if (req.method === "PUT") { res.status(200).json(await saveBlob(token, blobPageId, (req.body || {}).data)); return; }
       res.status(405).json({ error: target + " ondersteunt alleen GET/PUT" });
