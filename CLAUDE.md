@@ -101,14 +101,15 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     moeten exact hetzelfde zijn — dat is waar `section-markets.js` de
     quote (uit `/api/quotes`) aan de display-naam (uit `marketsCore.js`)
     koppelt.
-  - **EUR + USD naast elkaar (9 sept 2026)**: elke koers komt in zijn
-    eigen valuta binnen (EUR/USD/KRW) — de functie haalt er ook 2
-    wisselkoersen bij (`FX_TICKERS`: Yahoo's `EUR=X`/`KRW=X`, "hoeveel van
-    die valuta is 1 USD waard") en rekent via USD als spilvaluta om naar
-    zowel `eur_price` als `usd_price` per quote (`toEur()`/`toUsd()`).
-    `section-markets.js` toont beide naast elkaar ("€X · $Y"). Nieuwe
-    valuta toevoegen: gewoon een entry aan `FX_TICKERS` toevoegen, de
-    rest werkt vanzelf via dezelfde USD-omweg.
+  - **Eigen valuta per instrument, geen omrekening (9 sept 2026)**: eerst
+    geprobeerd om alles zowel in EUR als USD te tonen (`eur_price`/
+    `usd_price`, omgerekend via 2 Yahoo FX-tickers) — Floris vond dat
+    onjuist/rommelig aanvoelen en wilde gewoon de eigen, echte valuta per
+    instrument: `currency` van Yahoo direct gebruikt (`formatPrice()` in
+    `js/section-markets.js`, `€`/`$`/`₩` per valuta). De ETF's + ASML zijn
+    dus EUR (Xetra/Euronext), de losse Amerikaanse aandelen USD, SK Hynix
+    KRW (bewust niet naar dollar geforceerd — dat zou de prijs verkeerd
+    voorstellen).
   - **Percentage + laatst bijgewerkt (9 sept 2026)**: `pct_change` is
     Yahoo's `regularMarketChangePercent` — dat is altijd t.o.v. de vorige
     sluitingskoers, nooit intraday-vanaf-nu; dit staat nu als "% = sinds
@@ -117,6 +118,17 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     (moment van de server-fetch) die als "Koersen bijgewerkt om HH:MM"
     getoond wordt — let op: door de `s-maxage=300`-cache kan de
     daadwerkelijke koers zelf tot 5 min ouder zijn dan dit tijdstip.
+  - **Sorteren op prestatie + FLIP-animatie (9 sept 2026)**: de
+    tickerlijst staat altijd gesorteerd op `pct_change` (best presterende
+    bovenaan, slechtste onderaan; tickers zonder koers blijven onderaan
+    in vaste volgorde). `js/section-markets.js` splitst het renderen in
+    losse stukjes (`#mk-exchanges` elke seconde voor de countdown-
+    timers, `#mk-tickers` alleen bij nieuwe data van `/api/quotes`) zodat
+    een herordening niet steeds de hele widget opnieuw opbouwt. Bij een
+    herordening wordt de FLIP-techniek gebruikt (positie vóór de
+    herordening opslaan via `getBoundingClientRect()`, nieuwe volgorde
+    renderen, dan van oude naar nieuwe positie laten "glijden" met een
+    CSS-transform-transitie) i.p.v. abrupt te springen.
 - **`api/notion.js`** (3 targets):
   - `?target=kanban`: Productivity System (Personal/Academic/Business).
     Slaat het HELE `state.tasks`-array op als JSON in één code-block op
