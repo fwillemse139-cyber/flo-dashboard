@@ -147,6 +147,14 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     herordening opslaan via `getBoundingClientRect()`, nieuwe volgorde
     renderen, dan van oude naar nieuwe positie laten "glijden" met een
     CSS-transform-transitie) i.p.v. abrupt te springen.
+  - **iShares Physical Gold/Silver erbij (16 sept 2026)**: `PPFB`
+    (iShares Physical Gold ETC, `PPFB.DE`, Xetra — normale suffix) en
+    `PPFD` (iShares Physical Silver ETC). PPFD staat **niet** op Xetra
+    zoals de rest — `.DE`/`.AS`/`.L` gaven allemaal geen data terug, pas
+    via Yahoo's search-endpoint (`query2.finance.yahoo.com/v1/finance/search`)
+    gevonden dat 'm genoteerd is op Stuttgart: `PPFD.SG`. Beide in EUR,
+    geen `convertToUsd` nodig. Zelfde ticker-key-koppeling als altijd
+    tussen `SYMBOL_MAP` (dit bestand) en `TICKERS` in `js/marketsCore.js`.
 
 ## Deadline-herinneringen via Telegram (9 sept 2026, was eerst e-mail)
 

@@ -12,6 +12,9 @@
 // (op verzoek van Floris). Was eerst geprobeerd met een geforceerde
 // EUR+USD-omrekening voor ALLES, maar dat voelde rommelig aan — dus nu
 // bewust per instrument, alleen waar Floris het expliciet wil.
+// PPFD (iShares Physical Silver ETC) is genoteerd op Stuttgart (.SG), niet
+// Xetra (.DE) zoals de rest van de Europese instrumenten hier — .DE gaf
+// geen data terug, opgezocht via Yahoo's search-endpoint (16 sept 2026).
 var SYMBOL_MAP = {
   SEC0: { query: "SEC0.DE", display_name: "iShares MSCI Global Semiconductors UCITS ETF (Acc)" },
   SNDK: { query: "SNDK", display_name: "SanDisk Corp" },
@@ -20,7 +23,9 @@ var SYMBOL_MAP = {
   GOOGL: { query: "GOOGL", display_name: "Alphabet" },
   ASML: { query: "ASML.AS", display_name: "ASML" },
   MA: { query: "MA", display_name: "Mastercard" },
-  V: { query: "V", display_name: "Visa" }
+  V: { query: "V", display_name: "Visa" },
+  PPFB: { query: "PPFB.DE", display_name: "iShares Physical Gold ETC" },
+  PPFD: { query: "PPFD.SG", display_name: "iShares Physical Silver ETC" }
 };
 
 // FX-tickers voor `convertToUsd` — Yahoo's "X=X"-tickers geven steeds

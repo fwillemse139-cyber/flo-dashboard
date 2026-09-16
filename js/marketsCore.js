@@ -30,8 +30,9 @@ export var EXCHANGES = [
 ];
 
 // Instrumenten-lijst (9 sept 2026: IS3N eruit, SK Hynix/Alphabet/ASML/
-// Mastercard/Visa erbij, op verzoek van Floris). Ticker-keys hier moeten
-// exact overeenkomen met de keys in api/quotes.js's SYMBOL_MAP.
+// Mastercard/Visa erbij; 16 sept 2026: iShares Physical Gold/Silver erbij
+// — op verzoek van Floris). Ticker-keys hier moeten exact overeenkomen
+// met de keys in api/quotes.js's SYMBOL_MAP.
 export var TICKERS = [
   { ticker: "SEC0", display_name: "iShares MSCI Global Semiconductors UCITS ETF (Acc)" },
   { ticker: "SNDK", display_name: "SanDisk Corp" },
@@ -40,7 +41,9 @@ export var TICKERS = [
   { ticker: "GOOGL", display_name: "Alphabet" },
   { ticker: "ASML", display_name: "ASML" },
   { ticker: "MA", display_name: "Mastercard" },
-  { ticker: "V", display_name: "Visa" }
+  { ticker: "V", display_name: "Visa" },
+  { ticker: "PPFB", display_name: "iShares Physical Gold ETC" },
+  { ticker: "PPFD", display_name: "iShares Physical Silver ETC" }
 ];
 
 function getOffsetMinutes(timeZone, atDate) {
