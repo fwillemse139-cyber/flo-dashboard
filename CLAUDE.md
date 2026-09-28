@@ -366,6 +366,16 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
     (huidig vermogen, inkomen/uitgaven deze maand), Vermogen (rekeningen-
     lijst), en Inkomen & uitgaven (invulformulier + platte lijst, nieuwste
     maand eerst).
+    - **Categorie-dropdown i.p.v. vrije tekst (28 sept 2026)**: `CATEGORIES`
+      heeft een vaste lijst per type (inkomen: Salaris/Freelance/Stocks &
+      ETF's/Cadeau/Teruggave; uitgave: Boodschappen/Vaste lasten/Vervoer/
+      Abonnementen/Horeca/Winkelen/Stocks & ETF's), altijd met "Anders"
+      als laatste optie die een los tekstveld (`#fin-entry-category-custom`)
+      toont voor iets dat er niet bij staat. De categorie-`<select>` wordt
+      **niet** opnieuw opgebouwd via een volledige `render()` als je van
+      Inkomen naar Uitgave wisselt (dat zou de rest van het formulier ook
+      resetten) — een losse `change`-listener op het type-veld vervangt
+      alleen de `<option>`s van de categorie-select in place.
   - **Clients-tracker is verwijderd** (8 sept 2026, op verzoek van
     Floris) — de losse naam/project/status-lijst en de bijbehorende
     `?target=suerte`-Notion-blob ("Suerte Clients Data") worden niet meer

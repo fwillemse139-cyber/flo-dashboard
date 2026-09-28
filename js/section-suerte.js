@@ -12,6 +12,20 @@ var financial = { accounts: [], entries: [] };
 var notionAvailable = { financial: false };
 var localEditedSinceMount = false;
 
+// Categorieën ter keuze bij het invullen — "Anders" toont een los tekstveld
+// voor iets dat er niet bij staat, zodat het een vaste lijst blijft (snel
+// kiezen) zonder de vrijheid van eigen tekst kwijt te raken.
+var CATEGORIES = {
+  inkomen: ["Salaris", "Freelance / bijbaan", "Stocks & ETF's", "Cadeau", "Teruggave", "Anders"],
+  uitgave: ["Boodschappen", "Vaste lasten", "Vervoer", "Abonnementen", "Horeca", "Winkelen", "Stocks & ETF's", "Anders"]
+};
+
+function categoryOptions(type) {
+  return CATEGORIES[type].map(function (c) {
+    return '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+  }).join("");
+}
+
 function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -193,7 +207,8 @@ function render() {
   html += '<input class="field" id="fin-entry-month" type="month" value="' + thisMonth + '" style="flex:1;min-width:130px;">';
   html += '<input class="field" id="fin-entry-amount" type="number" step="0.01" placeholder="Bedrag" style="flex:1;min-width:90px;">';
   html += '<select class="field" id="fin-entry-type" style="flex:1;min-width:110px;"><option value="inkomen">Inkomen</option><option value="uitgave">Uitgave</option></select>';
-  html += '<input class="field" id="fin-entry-category" placeholder="Waarvoor? (bv. Salaris, Boodschappen)" style="flex:2;min-width:160px;">';
+  html += '<select class="field" id="fin-entry-category" style="flex:1;min-width:150px;">' + categoryOptions("inkomen") + '</select>';
+  html += '<input class="field" id="fin-entry-category-custom" placeholder="Naam categorie" style="flex:1;min-width:130px;display:none;">';
   html += '<select class="field" id="fin-entry-account" style="flex:1;min-width:130px;">' + accountOptions + '</select>';
   html += '<button class="new-task-btn" id="fin-entry-add">+ Toevoegen</button>';
   html += "</div>";
@@ -239,13 +254,28 @@ function attachEvents() {
     });
   });
 
+  var typeSelect = app.querySelector("#fin-entry-type");
+  var categorySelect = app.querySelector("#fin-entry-category");
+  var categoryCustom = app.querySelector("#fin-entry-category-custom");
+  if (typeSelect && categorySelect && categoryCustom) {
+    typeSelect.addEventListener("change", function () {
+      categorySelect.innerHTML = categoryOptions(typeSelect.value);
+      categoryCustom.style.display = "none";
+      categoryCustom.value = "";
+    });
+    categorySelect.addEventListener("change", function () {
+      categoryCustom.style.display = categorySelect.value === "Anders" ? "" : "none";
+    });
+  }
+
   var entryAddBtn = app.querySelector("#fin-entry-add");
   if (entryAddBtn) {
     entryAddBtn.addEventListener("click", function () {
       var month = app.querySelector("#fin-entry-month").value || currentMonthKey();
       var amount = parseFloat(app.querySelector("#fin-entry-amount").value);
       var type = app.querySelector("#fin-entry-type").value;
-      var category = app.querySelector("#fin-entry-category").value.trim();
+      var categoryChoice = app.querySelector("#fin-entry-category").value;
+      var category = categoryChoice === "Anders" ? app.querySelector("#fin-entry-category-custom").value.trim() : categoryChoice;
       var accountId = app.querySelector("#fin-entry-account").value;
       if (!category || isNaN(amount) || amount <= 0) return;
       addEntry(month, amount, type, category, accountId);
