@@ -163,7 +163,7 @@ export default async function handler(req, res) {
       return;
     }
     if (blobPageId) {
-      var fallback = (target === "kanban" || target === "health" || target === "worksessions" || target === "deadlinereminders") ? [] : (target === "financial" ? { transactions: [], income: [] } : {});
+      var fallback = (target === "kanban" || target === "health" || target === "worksessions" || target === "deadlinereminders") ? [] : (target === "financial" ? { accounts: [], entries: [] } : {});
       if (req.method === "GET") { res.status(200).json({ data: await loadBlob(token, blobPageId, fallback) }); return; }
       if (req.method === "PUT") { res.status(200).json(await saveBlob(token, blobPageId, (req.body || {}).data)); return; }
       res.status(405).json({ error: target + " ondersteunt alleen GET/PUT" });

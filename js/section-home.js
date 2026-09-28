@@ -44,15 +44,15 @@ function healthSummary() {
 }
 
 function suerteSummary() {
-  var financial = { transactions: [], income: [] };
+  var financial = { accounts: [], entries: [] };
   try {
     var raw = localStorage.getItem("flo.suerte_financial");
     if (raw) financial = JSON.parse(raw);
   } catch (e) {}
-  var monthPrefix = new Date().toISOString().slice(0, 7);
-  var txThisMonth = (financial.transactions || []).filter(function (t) { return (t.date || "").indexOf(monthPrefix) === 0; });
-  var spend = txThisMonth.filter(function (t) { return t.amount < 0; }).reduce(function (a, t) { return a + Math.abs(t.amount); }, 0);
-  var income = txThisMonth.concat(financial.income || []).filter(function (t) { return (t.amount || 0) > 0; }).reduce(function (a, t) { return a + t.amount; }, 0);
+  var monthKey = new Date().toISOString().slice(0, 7);
+  var entriesThisMonth = (financial.entries || []).filter(function (e) { return e.month === monthKey; });
+  var spend = entriesThisMonth.filter(function (e) { return e.type === "uitgave"; }).reduce(function (a, e) { return a + e.amount; }, 0);
+  var income = entriesThisMonth.filter(function (e) { return e.type === "inkomen"; }).reduce(function (a, e) { return a + e.amount; }, 0);
   var html = '<div class="home-line"><span>Uitgaven deze maand</span><span class="deadline">€' + spend.toFixed(2) + '</span></div>';
   html += '<div class="home-line"><span>Inkomsten deze maand</span><span class="deadline">€' + income.toFixed(2) + '</span></div>';
   return html;

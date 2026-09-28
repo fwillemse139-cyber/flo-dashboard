@@ -322,59 +322,50 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
     verwijderen van een sessie. Op Home (`showLog` niet gezet) blijft de
     widget compact — alleen start/stop + dagtotaal, geen logboek.
 - **`js/barChart.js`**: kleine gedeelde staafdiagram-renderer
-  (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door zowel
-  Suerte (financieel) als Health — voorkomt dat dezelfde bar-HTML op
-  meerdere plekken gedupliceerd wordt.
+  (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door Health.
+  Werd eerst ook door Suerte (financieel) gebruikt, maar die is 28 sept
+  2026 herbouwd zonder staafdiagrammen — zie hieronder.
 - **`js/section-suerte.js`** (business-hub):
-  - **Financial** (`?target=financial`): bank-statement-PDF's uploaden
-    (meerdere bestanden tegelijk, van willekeurig welk jaar door elkaar)
-    → client-side uitgelezen met pdf.js (dynamisch geladen vanaf cdnjs,
-    alleen bij gebruik) → regel-voor-regel gematcht op een datum+bedrag-
-    patroon → datum genormaliseerd naar ISO (`toIsoDate()`) zodat
-    transacties uit verschillende jaren/exports op dezelfde manier
-    gegroepeerd kunnen worden → automatische categorie-gok op basis van
-    trefwoorden (boodschappen/vervoer/abonnementen/etc., anders
-    "Overig"). Dubbele transacties (zelfde datum+omschrijving+bedrag,
-    `txFingerprint()`) worden bij upload automatisch overgeslagen, dus
-    dezelfde periode nog eens uploaden of overlappende jaaroverzichten
-    geeft geen dubbele boekingen. Handmatig een transactie toevoegen werkt
-    sowieso altijd als fallback.
-    - **Parser herzien (8 sept 2026)**: eerste versie herkende alleen
-      Engelse maandnamen + punt-decimalen, wat waarschijnlijk de reden was
-      dat Florens eigen bank-PDF's niks opleverden. `DATE_PATTERN`
-      herkent nu ook Nederlandse maandnamen (`mrt`/`mei`/`okt`/etc.) en
-      numerieke datums (`24-01-2024`/`24/01/2024`); `parseAmount()`
-      herkent zowel komma- als punt-decimalen (kijkt welke van de twee
-      het laatst in de string staat). Als een bestand nul transacties
-      oplevert, toont de upload-kaart nu de eerste ~25 ruwe tekstregels
-      die pdf.js eruit haalde (`uploadDebug`) — gebruik dat om het patroon
-      verder te verfijnen i.p.v. blind te gokken.
-    Analytics (allemaal staafdiagrammen via het gedeelde `js/barChart.js`):
-    grootste uitgavecategorieën/inkomstenbronnen all-time, uitgaven per
-    jaar, uitgaven per maand (laatste 12 mnd), grootste categorieën
-    afgelopen jaar, en een "Mogelijk te besparen"-lijst
-    (`recurringCandidates()` — omschrijvingen die in 3+ losse maanden
-    terugkomen, met geschat maand-/jaarbedrag; typisch abonnementen of
-    terugkerende kosten die je bent vergeten).
-  - **Inkomen + Saldo & vermogen (28 sept 2026, op verzoek van Floris)**:
-    twee nieuwe, volledig los-ingevulde kaarten (geen bank-upload nodig) —
-    `financial.income` (terugkerende inkomstenbronnen: `{id, label, amount,
-    frequency}`, frequency = maandelijks/jaarlijks/eenmalig, opgeteld tot
-    "Inkomen per maand" via `monthlyIncomeTotal()`) en `financial.accounts`
-    (rekeningen/bezittingen: `{id, label, balance}`, saldo direct in de
-    lijst te bewerken via een number-input met `change`-event, opgeteld tot
-    "Huidig vermogen"/"Totaal vermogen" via `netWorthTotal()`). Bewust
-    losgekoppeld van de bank-transactie-analytics hierboven: `incomeBySource()`
-    en de "Totaal inkomsten (transacties)"-stat in het overzicht gebruiken
-    nog steeds alléén `financial.transactions` (bank-uploads/handmatige
-    transacties) — eerst per ongeluk ook `financial.income` erin gemixt
-    (leverde "Onbekend €X" op in Grootste inkomstenbronnen, want dat gebruikt
-    `description`/`source`, niet het `label`-veld van income-items), maar
-    dat is conceptueel iets anders (terugkerend inkomen dat je zelf invult
-    vs. concrete, gedateerde transacties) en hoort dus niet samengeteld te
-    worden. `normalizeFinancial()` vult ontbrekende `income`/`accounts`-
-    arrays aan voor oudere, van vóór deze wijziging opgeslagen snapshots
-    (localStorage én Notion).
+  - **Financial (`?target=financial`) — volledig herbouwd, veel simpeler
+    (28 sept 2026, op verzoek van Floris)**: de oude bank-statement-PDF-
+    upload/parser + categorie-analytics (grootste categorieën, uitgaven
+    per jaar/maand, "mogelijk te besparen") is helemaal weg, samen met
+    de eerdere "Inkomen"/"Saldo & vermogen"-kaarten van eerder die dag —
+    Floris vond het geheel niet "super makkelijk en toegankelijk" genoeg
+    en wilde alles op 0 met een veel directer model. Nieuwe databron:
+    - `financial.accounts` — waar het vermogen staat: `{id, label,
+      balance}` (bv. Spaarrekening, Stocks & ETF's, Contant). Saldo direct
+      in de lijst bewerkbaar (number-input + `change`-event). Som =
+      "Huidig vermogen" (`netWorthTotal()`).
+    - `financial.entries` — losse inkomsten/uitgaven: `{id, month
+      ("YYYY-MM", via een native `<input type="month">`), amount, type:
+      "inkomen"|"uitgave", category (vrije tekst, "wat voor type"),
+      accountId (optioneel)}`. Bij het invullen kies je een simpel
+      positief bedrag + Inkomen/Uitgave uit een dropdown (geen +/- in het
+      bedrag zelf, minder foutgevoelig).
+    - **Rekening-koppeling is de kern van het "makkelijk" maken**: als je
+      een entry aan een account koppelt (`accountId`), wordt die
+      account-balance automatisch bijgewerkt (`applyEntryToAccount()`,
+      +bedrag bij inkomen/-bedrag bij uitgave) — en teruggedraaid als je
+      de entry weer verwijdert. Zo hoef je nooit een rekeningsaldo apart
+      bij te houden naast de inkomsten/uitgaven die je toch al invult.
+      Voorbeeld uit Floris' eigen omschrijving: €500 uitgave gekoppeld aan
+      Spaarrekening (saldo -500), €400 inkomen gekoppeld aan Stocks &
+      ETF's (+400), €120 uitgave "Vaste lasten" zonder rekening
+      (beïnvloedt geen saldo, telt alleen mee in "Uitgaven deze maand"),
+      €280 inkomen gekoppeld aan Spaarrekening (+280) — getest en
+      geverifieerd dat "Huidig vermogen" precies optelt tot het juiste
+      resultaat.
+    - **Reset van oude data (`isLegacyShape()`)**: data van vóór deze
+      herbouw had een andere vorm (`transactions`/`income` i.p.v.
+      `accounts`/`entries`). In plaats van te migreren wordt zo'n oude
+      snapshot (in localStorage én in Notion, bij de eerste load na deze
+      wijziging) gewoon gereset naar `{accounts: [], entries: []}` — exact
+      Floris' verzoek ("het moet allemaal op 0 staan").
+    Geen analytics/staafdiagrammen meer — alleen 3 kaarten: Overzicht
+    (huidig vermogen, inkomen/uitgaven deze maand), Vermogen (rekeningen-
+    lijst), en Inkomen & uitgaven (invulformulier + platte lijst, nieuwste
+    maand eerst).
   - **Clients-tracker is verwijderd** (8 sept 2026, op verzoek van
     Floris) — de losse naam/project/status-lijst en de bijbehorende
     `?target=suerte`-Notion-blob ("Suerte Clients Data") worden niet meer
