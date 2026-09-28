@@ -322,9 +322,8 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
     verwijderen van een sessie. Op Home (`showLog` niet gezet) blijft de
     widget compact — alleen start/stop + dagtotaal, geen logboek.
 - **`js/barChart.js`**: kleine gedeelde staafdiagram-renderer
-  (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door Health.
-  Werd eerst ook door Suerte (financieel) gebruikt, maar die is 28 sept
-  2026 herbouwd zonder staafdiagrammen — zie hieronder.
+  (`renderBars(rows, valueKey, labelKey, opts)`), gebruikt door Health en
+  (sinds de Statistieken-kaart, 28 sept 2026) weer door Suerte (financieel).
 - **`js/section-suerte.js`** (business-hub):
   - **Financial (`?target=financial`) — volledig herbouwd, veel simpeler
     (28 sept 2026, op verzoek van Floris)**: de oude bank-statement-PDF-
@@ -362,10 +361,9 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
       snapshot (in localStorage én in Notion, bij de eerste load na deze
       wijziging) gewoon gereset naar `{accounts: [], entries: []}` — exact
       Floris' verzoek ("het moet allemaal op 0 staan").
-    Geen analytics/staafdiagrammen meer — alleen 3 kaarten: Overzicht
-    (huidig vermogen, inkomen/uitgaven deze maand), Vermogen (rekeningen-
-    lijst), en Inkomen & uitgaven (invulformulier + platte lijst, nieuwste
-    maand eerst).
+    Kaarten: Overzicht (huidig vermogen, inkomen/uitgaven deze maand),
+    Vermogen (rekeningenlijst), Inkomen & uitgaven (invulformulier + platte
+    lijst, nieuwste maand eerst), en Statistieken (zie hieronder).
     - **Categorie-dropdown i.p.v. vrije tekst (28 sept 2026)**: `CATEGORIES`
       heeft een vaste lijst per type (inkomen: Salaris/Freelance/Stocks &
       ETF's/Cadeau/Teruggave; uitgave: Boodschappen/Vaste lasten/Vervoer/
@@ -375,7 +373,63 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
       **niet** opnieuw opgebouwd via een volledige `render()` als je van
       Inkomen naar Uitgave wisselt (dat zou de rest van het formulier ook
       resetten) — een losse `change`-listener op het type-veld vervangt
-      alleen de `<option>`s van de categorie-select in place.
+      alleen de `<option>`s van de categorie-select in place. Let op: dit
+      is puur een UI-gemak voor NIEUWE entries — de opgeslagen `category` is
+      gewoon een losse string, dus bulk-geïmporteerde data (zie hieronder)
+      mag ook categorieën gebruiken die niet in deze lijst staan (bv.
+      "Vrienden/familie", "Contant", "Studiefinanciering").
+    - **Statistieken-kaart + eenmalige bank-import (28 sept 2026, op
+      verzoek van Floris)**: all-time totaal inkomen/uitgaven, netto, en de
+      drukste maand voor inkomen én uitgaven apart (`allTimeTotals()`,
+      `monthlyBreakdown()`, `busiestMonth()`), plus twee staafdiagrammen
+      (inkomen/uitgaven per maand, laatste 12 maanden met data — niet per
+      se de laatste 12 kalendermaanden, want bij historische import loopt
+      dat niet meer gelijk) via het weer-teruggehaalde `js/barChart.js`.
+      - Data komt van een eenmalige, buiten de app om gedraaide import van
+        4 bank-PDF's die Floris aanleverde (ING, Revolut, en 2x Santander-
+        export met een overlappende periode). Geen code in de repo hiervoor
+        — uitgevoerd als scratch Node-scripts (`pdf-parse` voor tekst-
+        extractie, want `pdftoppm`/poppler ontbreekt in deze omgeving en
+        de ingebouwde PDF-pagina-render van de Read-tool werkt daardoor
+        niet voor >10 pagina's) die rechtstreeks via `PUT
+        /api/notion?target=financial` de resulterende `{accounts, entries}`
+        naar Notion hebben geschreven. Elke bank-parser is geverifieerd
+        tegen het eigen doorlopende saldo dat de bank zelf print (ING klopt
+        tot op de cent met het "Totaal bij/af" bovenaan; Santander/Revolut
+        voor >98% van de opeenvolgende regel-paren) — bij problemen met
+        toekomstige imports: dat is de aanpak die werkte.
+      - **Overboekingen tussen Floris' eigen rekeningen tellen niet mee**
+        als inkomen/uitgave (anders tel je hetzelfde geld dubbel): ING's
+        eigen "Oranje spaarrekening"-potje, Revolut's eigen "Dagelijkse
+        Spaarrekening"/"beleggingsrekening"-potjes, plus actief gematchte
+        paren tussen bestanden (ING/Santander-afschrijving "Revolut**XXXX*"
+        ↔ Revolut "{xPay} geld toevoegen", op bedrag+datum binnen 4 dagen;
+        en ING↔Santander-overboekingen naar zijn eigen naam "Floris
+        Willemse"/"Hr FFFH Willemse"). "E R Willemse" (andere initialen)
+        is wél als een echte inkomst/gift van een familielid behandeld.
+      - Twee van de 5 accounts hebben geen eigen eindsaldo in een afschrift
+        en kwamen dus rechtstreeks van Floris zelf (niet uit een PDF
+        berekend): **"ING Oranje Spaarrekening"** (€890, 28 sept 2026 — de
+        ING-PDF toont die rekening alleen via de overboekingsregels
+        ernaartoe, niet met een eigen saldo) en **"Revolut Stocks & ETF's"**
+        (€1.370, 28 sept 2026 — eerst berekend als kostprijs-proxy, de som
+        van alle "Naar beleggingsrekening"-overboekingen ooit gedaan
+        [€1.703,52], maar dat is de daadwerkelijke beleggingswaarde niet
+        — koersen bewegen — dus meteen vervangen door Floris' eigen live
+        cijfer toen hij die noemde). De overige 3 accounts (ING
+        Betaalrekening, Santander, Revolut Betaalrekening) gebruiken wél
+        het exacte eindsaldo dat elk afschrift zelf print.
+      - Categorisering is keyword-gebaseerd (bv. "yource spain" →
+        Salaris, "duo hoofdrekening/groningen" → Studiefinanciering,
+        "tikkie"/"transferencia (a favor de|de)" → Vrienden/familie) en
+        dekt de hoogfrequente/hoogwaardige patronen; de lange staart van
+        eenmalige/onbekende aankopen over 3,5 jaar (~25% van de uitgaven)
+        valt onder categorie "Overig (nog te categoriseren)".
+      - **"Jumbo Supermarkten B.V. Verzamelbetaling"** (9x, feb–sep 2026,
+        €7.033,37) staat vooralsnog onder Salaris — dit lijkt op loon van
+        een bijbaan (regelmatig, wisselend bedrag = wisselende uren), maar
+        is Floris' eigen interpretatie nooit expliciet bevestigd toen ernaar
+        gevraagd werd. Bij twijfel: dit is de post om opnieuw te checken.
   - **Clients-tracker is verwijderd** (8 sept 2026, op verzoek van
     Floris) — de losse naam/project/status-lijst en de bijbehorende
     `?target=suerte`-Notion-blob ("Suerte Clients Data") worden niet meer

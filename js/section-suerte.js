@@ -1,4 +1,5 @@
 import { uid } from "./store.js";
+import { renderBars } from "./barChart.js";
 
 var STORAGE_KEY = "flo.suerte_financial";
 var container = null;
@@ -164,6 +165,32 @@ function monthTotal(type, monthKey) {
     .reduce(function (sum, e) { return sum + e.amount; }, 0);
 }
 
+// ---------- Statistieken (all-time + per maand) ----------
+function allTimeTotals() {
+  var income = 0, expense = 0;
+  financial.entries.forEach(function (e) {
+    if (e.type === "inkomen") income += e.amount; else expense += e.amount;
+  });
+  return { income: income, expense: expense };
+}
+
+// Eén rij per maand die ook maar ergens in `entries` voorkomt (niet per se
+// de laatste 12 vanaf vandaag — bij een import van jaren geschiedenis loopt
+// "de laatste 12 maanden" al lang niet meer gelijk met "waar data over is").
+function monthlyBreakdown() {
+  var byMonth = {};
+  financial.entries.forEach(function (e) {
+    if (!byMonth[e.month]) byMonth[e.month] = { month: e.month, income: 0, expense: 0 };
+    if (e.type === "inkomen") byMonth[e.month].income += e.amount; else byMonth[e.month].expense += e.amount;
+  });
+  return Object.keys(byMonth).sort().map(function (m) { return byMonth[m]; });
+}
+
+function busiestMonth(rows, key) {
+  if (rows.length === 0) return null;
+  return rows.reduce(function (best, r) { return r[key] > best[key] ? r : best; }, rows[0]);
+}
+
 function render() {
   if (!container) return;
   var netWorth = netWorthTotal();
@@ -175,6 +202,13 @@ function render() {
   var accountOptions = '<option value="">Geen</option>' + financial.accounts.map(function (a) {
     return '<option value="' + a.id + '">' + esc(a.label) + '</option>';
   }).join("");
+
+  var allTime = allTimeTotals();
+  var monthRows = monthlyBreakdown();
+  var busiestIncome = busiestMonth(monthRows, "income");
+  var busiestExpense = busiestMonth(monthRows, "expense");
+  var recentMonths = monthRows.slice(-12);
+  function euroFmt(v) { return "€" + v.toFixed(0); }
 
   var html = '<div class="section-header"><h2>Finance</h2><div class="tagline">Inkomen, uitgaven en vermogen — simpel bijgehouden</div></div>';
   html += '<div class="home-grid">';
@@ -225,6 +259,22 @@ function render() {
     });
   }
   html += "</div>";
+
+  if (monthRows.length > 0) {
+    html += '<div class="home-card"><div class="home-card-title">Statistieken (all-time)</div>';
+    html += '<div class="stat-row"><span>Totaal inkomen</span><span style="color:var(--done);font-weight:700;">€' + allTime.income.toFixed(2) + '</span></div>';
+    html += '<div class="stat-row"><span>Totaal uitgaven</span><span class="deadline-urgent">€' + allTime.expense.toFixed(2) + '</span></div>';
+    html += '<div class="stat-row"><span>Netto</span><span style="font-weight:700;">€' + (allTime.income - allTime.expense).toFixed(2) + '</span></div>';
+    if (busiestIncome) html += '<div class="stat-row"><span>Drukste maand (inkomen)</span><span style="color:var(--done);font-weight:700;">' + formatMonth(busiestIncome.month) + ' · €' + busiestIncome.income.toFixed(2) + '</span></div>';
+    if (busiestExpense) html += '<div class="stat-row"><span>Drukste maand (uitgaven)</span><span class="deadline-urgent">' + formatMonth(busiestExpense.month) + ' · €' + busiestExpense.expense.toFixed(2) + '</span></div>';
+    html += "</div>";
+
+    html += '<div class="home-card home-card-wide"><div class="home-card-title">Inkomen &amp; uitgaven per maand (laatste ' + recentMonths.length + ')</div>';
+    html += renderBars(recentMonths.map(function (r) { return { label: formatMonth(r.month), total: r.income }; }), "total", "label", { format: euroFmt, limit: 12, color: "var(--done)" });
+    html += '<div style="height:10px;"></div>';
+    html += renderBars(recentMonths.map(function (r) { return { label: formatMonth(r.month), total: r.expense }; }), "total", "label", { format: euroFmt, limit: 12, color: "var(--high)" });
+    html += "</div>";
+  }
 
   html += "</div>";
   container.innerHTML = html;
