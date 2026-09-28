@@ -356,6 +356,25 @@ Nav is nu **Home / Productivity System / Health / Finance / Identity**
     (`recurringCandidates()` — omschrijvingen die in 3+ losse maanden
     terugkomen, met geschat maand-/jaarbedrag; typisch abonnementen of
     terugkerende kosten die je bent vergeten).
+  - **Inkomen + Saldo & vermogen (28 sept 2026, op verzoek van Floris)**:
+    twee nieuwe, volledig los-ingevulde kaarten (geen bank-upload nodig) —
+    `financial.income` (terugkerende inkomstenbronnen: `{id, label, amount,
+    frequency}`, frequency = maandelijks/jaarlijks/eenmalig, opgeteld tot
+    "Inkomen per maand" via `monthlyIncomeTotal()`) en `financial.accounts`
+    (rekeningen/bezittingen: `{id, label, balance}`, saldo direct in de
+    lijst te bewerken via een number-input met `change`-event, opgeteld tot
+    "Huidig vermogen"/"Totaal vermogen" via `netWorthTotal()`). Bewust
+    losgekoppeld van de bank-transactie-analytics hierboven: `incomeBySource()`
+    en de "Totaal inkomsten (transacties)"-stat in het overzicht gebruiken
+    nog steeds alléén `financial.transactions` (bank-uploads/handmatige
+    transacties) — eerst per ongeluk ook `financial.income` erin gemixt
+    (leverde "Onbekend €X" op in Grootste inkomstenbronnen, want dat gebruikt
+    `description`/`source`, niet het `label`-veld van income-items), maar
+    dat is conceptueel iets anders (terugkerend inkomen dat je zelf invult
+    vs. concrete, gedateerde transacties) en hoort dus niet samengeteld te
+    worden. `normalizeFinancial()` vult ontbrekende `income`/`accounts`-
+    arrays aan voor oudere, van vóór deze wijziging opgeslagen snapshots
+    (localStorage én Notion).
   - **Clients-tracker is verwijderd** (8 sept 2026, op verzoek van
     Floris) — de losse naam/project/status-lijst en de bijbehorende
     `?target=suerte`-Notion-blob ("Suerte Clients Data") worden niet meer

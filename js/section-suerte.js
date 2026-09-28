@@ -3,7 +3,10 @@ import { renderBars } from "./barChart.js";
 
 var STORAGE_KEY = "flo.suerte_financial";
 var container = null;
-var financial = { transactions: [], income: [] };
+// `income` = terugkerende inkomstenbronnen (los ingevuld door Floris, geen
+// bank-transacties) — {id, label, amount, frequency}. `accounts` = saldo
+// per rekening/bezit — {id, label, balance} — som hiervan is het vermogen.
+var financial = { transactions: [], income: [], accounts: [] };
 var notionAvailable = { financial: false };
 var localEditedSinceMount = false;
 var uploadStatus = "";
@@ -30,8 +33,9 @@ export async function init(rootEl) {
   localEditedSinceMount = false;
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
-    financial = raw ? JSON.parse(raw) : { transactions: [], income: [] };
-  } catch (e) { financial = { transactions: [], income: [] }; }
+    financial = raw ? JSON.parse(raw) : { transactions: [], income: [], accounts: [] };
+  } catch (e) { financial = { transactions: [], income: [], accounts: [] }; }
+  normalizeFinancial();
   render();
 
   try {
@@ -53,6 +57,7 @@ export async function init(rootEl) {
         financial = notionFinancial;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(financial));
       }
+      normalizeFinancial();
       render();
     }
   } catch (e) {}
@@ -234,6 +239,61 @@ function addManualTransaction(desc, amount, category) {
   render();
 }
 
+// Vult ontbrekende velden aan voor data die vóór het invoeren van Inkomen/
+// Saldo & vermogen is opgeslagen (in localStorage of Notion), zodat oudere
+// snapshots niet crashen op een ontbrekend `accounts`-array.
+function normalizeFinancial() {
+  financial.transactions = financial.transactions || [];
+  financial.income = financial.income || [];
+  financial.accounts = financial.accounts || [];
+}
+
+// ---------- Inkomen (terugkerende bronnen, los ingevuld door Floris) ----------
+function addIncomeSource(label, amount, frequency) {
+  financial.income.push({ id: uid(), label: label, amount: amount, frequency: frequency });
+  persistFinancial();
+  render();
+}
+
+function removeIncomeSource(id) {
+  financial.income = financial.income.filter(function (i) { return i.id !== id; });
+  persistFinancial();
+  render();
+}
+
+function monthlyIncomeTotal() {
+  return financial.income.reduce(function (sum, i) {
+    if (i.frequency === "jaarlijks") return sum + i.amount / 12;
+    if (i.frequency === "eenmalig") return sum;
+    return sum + i.amount;
+  }, 0);
+}
+
+// ---------- Saldo & vermogen (rekeningen/bezittingen, los ingevuld) ----------
+function addAccount(label, balance) {
+  financial.accounts.push({ id: uid(), label: label, balance: balance });
+  persistFinancial();
+  render();
+}
+
+function removeAccount(id) {
+  financial.accounts = financial.accounts.filter(function (a) { return a.id !== id; });
+  persistFinancial();
+  render();
+}
+
+function updateAccountBalance(id, balance) {
+  var acc = financial.accounts.find(function (a) { return a.id === id; });
+  if (!acc) return;
+  acc.balance = balance;
+  persistFinancial();
+  render();
+}
+
+function netWorthTotal() {
+  return financial.accounts.reduce(function (sum, a) { return sum + (a.balance || 0); }, 0);
+}
+
 // ---------- Analytics ----------
 function spendByCategory() {
   var totals = {};
@@ -244,12 +304,15 @@ function spendByCategory() {
   return Object.keys(totals).map(function (k) { return { category: k, total: totals[k] }; }).sort(function (a, b) { return b.total - a.total; });
 }
 
+// Let op: puur gebaseerd op banktransacties (uploads/handmatige transactie-
+// invoer), niet op de Inkomen-kaart hierboven — dat zijn losse, terugkerende
+// bronnen zonder datum/omschrijving-structuur en horen hier niet in mee.
 function incomeBySource() {
   var totals = {};
-  financial.transactions.concat(financial.income || []).forEach(function (t) {
+  financial.transactions.forEach(function (t) {
     var amt = t.amount != null ? t.amount : 0;
     if (amt <= 0) return;
-    var key = t.description || t.source || "Onbekend";
+    var key = t.description || "Onbekend";
     totals[key] = (totals[key] || 0) + amt;
   });
   return Object.keys(totals).map(function (k) { return { source: k, total: totals[k] }; }).sort(function (a, b) { return b.total - a.total; });
@@ -331,7 +394,7 @@ function recurringCandidates() {
 function render() {
   if (!container) return;
   var totalSpend = financial.transactions.filter(function (t) { return t.amount < 0; }).reduce(function (a, t) { return a + Math.abs(t.amount); }, 0);
-  var totalIncome = financial.transactions.concat(financial.income || []).filter(function (t) { return (t.amount || 0) > 0; }).reduce(function (a, t) { return a + t.amount; }, 0);
+  var totalIncome = financial.transactions.filter(function (t) { return (t.amount || 0) > 0; }).reduce(function (a, t) { return a + t.amount; }, 0);
   var byCategory = spendByCategory();
   var bySource = incomeBySource();
   var recentTx = financial.transactions.slice().sort(function (a, b) { return (txDate(b) || 0) - (txDate(a) || 0); }).slice(0, 10);
@@ -340,14 +403,54 @@ function render() {
   var oneYearMs = 365 * 24 * 60 * 60 * 1000;
   var lastYearCategories = categoryTotalsInRange(Date.now() - oneYearMs, Date.now());
   var recurring = recurringCandidates();
+  var netWorth = netWorthTotal();
+  var monthlyIncome = monthlyIncomeTotal();
 
   var html = '<div class="section-header"><h2>Finance</h2><div class="tagline">Financieel overzicht en analytics</div></div>';
   html += '<div class="home-grid">';
 
   html += '<div class="home-card"><div class="home-card-title">Financieel overzicht</div>';
+  html += '<div class="stat-row"><span>Huidig vermogen</span><span style="color:var(--done);font-weight:700;">€' + netWorth.toFixed(2) + '</span></div>';
+  html += '<div class="stat-row"><span>Inkomen per maand</span><span style="color:var(--done);font-weight:700;">€' + monthlyIncome.toFixed(2) + '</span></div>';
   html += '<div class="stat-row"><span>Totaal uitgegeven</span><span class="deadline-urgent">€' + totalSpend.toFixed(2) + '</span></div>';
-  html += '<div class="stat-row"><span>Totaal inkomsten</span><span style="color:var(--done);font-weight:700;">€' + totalIncome.toFixed(2) + '</span></div>';
+  html += '<div class="stat-row"><span>Totaal inkomsten (transacties)</span><span style="color:var(--done);font-weight:700;">€' + totalIncome.toFixed(2) + '</span></div>';
   html += "</div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Inkomen</div>';
+  if (financial.income.length === 0) {
+    html += '<div class="empty-drop">Nog geen inkomstenbronnen ingevuld</div>';
+  } else {
+    financial.income.forEach(function (i) {
+      var freqLabel = i.frequency === "jaarlijks" ? "/jaar" : (i.frequency === "eenmalig" ? " (eenmalig)" : "/maand");
+      html += '<div class="home-line"><span>' + esc(i.label) + '</span><span style="display:flex;align-items:center;gap:8px;">';
+      html += '<span style="color:var(--done);font-weight:600;">€' + i.amount.toFixed(2) + freqLabel + '</span>';
+      html += '<button class="close-btn" data-action="remove-income" data-id="' + i.id + '">×</button></span></div>';
+    });
+  }
+  html += '<div class="stat-row" style="margin-top:4px;"><span>Totaal per maand</span><span style="color:var(--done);font-weight:700;">€' + monthlyIncome.toFixed(2) + '</span></div>';
+  html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
+  html += '<input class="field" id="fin-income-label" placeholder="Bron (bv. salaris)" style="flex:2;min-width:120px;">';
+  html += '<input class="field" id="fin-income-amount" type="number" step="0.01" placeholder="Bedrag" style="flex:1;min-width:90px;">';
+  html += '<select class="field" id="fin-income-freq" style="flex:1;min-width:110px;"><option value="maandelijks">Maandelijks</option><option value="jaarlijks">Jaarlijks</option><option value="eenmalig">Eenmalig</option></select>';
+  html += '<button class="new-task-btn" id="fin-income-add">+ Toevoegen</button>';
+  html += "</div></div>";
+
+  html += '<div class="home-card"><div class="home-card-title">Saldo & vermogen</div>';
+  if (financial.accounts.length === 0) {
+    html += '<div class="empty-drop">Nog geen rekeningen/bezittingen ingevuld</div>';
+  } else {
+    financial.accounts.forEach(function (a) {
+      html += '<div class="home-line"><span>' + esc(a.label) + '</span><span style="display:flex;align-items:center;gap:8px;">';
+      html += '<input class="field" type="number" step="0.01" data-action="account-balance" data-id="' + a.id + '" value="' + a.balance + '" style="width:110px;text-align:right;">';
+      html += '<button class="close-btn" data-action="remove-account" data-id="' + a.id + '">×</button></span></div>';
+    });
+  }
+  html += '<div class="stat-row" style="margin-top:4px;"><span>Totaal vermogen</span><span style="color:var(--done);font-weight:700;">€' + netWorth.toFixed(2) + '</span></div>';
+  html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
+  html += '<input class="field" id="fin-account-label" placeholder="Naam (bv. betaalrekening)" style="flex:2;min-width:140px;">';
+  html += '<input class="field" id="fin-account-balance" type="number" step="0.01" placeholder="Saldo" style="flex:1;min-width:90px;">';
+  html += '<button class="new-task-btn" id="fin-account-add">+ Toevoegen</button>';
+  html += "</div></div>";
 
   html += '<div class="home-card"><div class="home-card-title">Bank-statements uploaden</div>';
   html += '<div class="upload-drop" id="fin-upload-drop">Klik om PDF(‘s) te kiezen — meerdere bestanden en meerdere jaren tegelijk mag</div>';
@@ -427,4 +530,38 @@ function attachEvents() {
       addManualTransaction(desc, amount, amount < 0 ? guessCategory(desc) : "Inkomen");
     });
   }
+
+  var incomeAddBtn = app.querySelector("#fin-income-add");
+  if (incomeAddBtn) {
+    incomeAddBtn.addEventListener("click", function () {
+      var label = app.querySelector("#fin-income-label").value.trim();
+      var amount = parseFloat(app.querySelector("#fin-income-amount").value);
+      var frequency = app.querySelector("#fin-income-freq").value;
+      if (!label || isNaN(amount)) return;
+      addIncomeSource(label, amount, frequency);
+    });
+  }
+  app.querySelectorAll('[data-action="remove-income"]').forEach(function (btn) {
+    btn.addEventListener("click", function () { removeIncomeSource(btn.getAttribute("data-id")); });
+  });
+
+  var accountAddBtn = app.querySelector("#fin-account-add");
+  if (accountAddBtn) {
+    accountAddBtn.addEventListener("click", function () {
+      var label = app.querySelector("#fin-account-label").value.trim();
+      var balance = parseFloat(app.querySelector("#fin-account-balance").value);
+      if (!label || isNaN(balance)) return;
+      addAccount(label, balance);
+    });
+  }
+  app.querySelectorAll('[data-action="remove-account"]').forEach(function (btn) {
+    btn.addEventListener("click", function () { removeAccount(btn.getAttribute("data-id")); });
+  });
+  app.querySelectorAll('[data-action="account-balance"]').forEach(function (input) {
+    input.addEventListener("change", function () {
+      var v = parseFloat(input.value);
+      if (isNaN(v)) return;
+      updateAccountBalance(input.getAttribute("data-id"), v);
+    });
+  });
 }
