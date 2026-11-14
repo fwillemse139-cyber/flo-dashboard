@@ -53,6 +53,26 @@ aanpak.
   element en de animatie op het buitenste. Alles uit bij
   `prefers-reduced-motion`. `favicon.svg` is dezelfde F zonder animatie.
   Keyframes: `lm-*` en `wm-*` in `css/dashboard.css`.
+  **Vastgepinde snelkoppelingen / thuisscherm (14 nov 2026)**: `index.html`
+  linkt `manifest.webmanifest` (naam "Flo's Dashboard", korte naam "Flo",
+  `display: standalone`, donker `theme_color`/`background_color` #0a0a0a) en
+  PNG-iconen in `assets/`, want iOS/Android gebruiken voor een
+  snelkoppeling géén SVG-favicon: `icon-192.png` en `icon-512.png`
+  (afgeronde tegel, "any"), `icon-maskable-512.png` en
+  `apple-touch-icon.png` (180px) zijn **volledig gevulde vierkanten zonder
+  transparante hoeken** — iOS maakt van transparantie zwart en Android
+  maskeert zelf, dus de F is daar iets groter maar nog binnen de maskable
+  veilige zone — plus `favicon-32.png`/`favicon-48.png` als fallback voor
+  browsers zonder SVG-favicon en `mask-icon.svg` (eenkleurig silhouet, kleur
+  #10b981) voor Safari's vastgepinde tabbladen. De PNG's zijn eenmalig uit
+  dezelfde SVG-geometrie gerenderd met `@resvg/resvg-js` (scratch-script,
+  niet in de repo, want er is geen build-stap): **wijzigt het logo, dan
+  moeten deze PNG's opnieuw gegenereerd worden** — de SVG's alleen
+  aanpassen is niet genoeg. Bewust geen service worker (niet nodig om het
+  icoon te tonen; "toevoegen aan beginscherm" werkt ook zonder) en
+  `apple-mobile-web-app-status-bar-style` is `black` i.p.v. `black-translucent`:
+  translucent laat de pagina onder de iOS-statusbalk lopen en de app heeft
+  nog geen `safe-area`-padding voor de notch.
 - **Home**: het hele dashboard in één oogopslag —
   - **Deadlines**: top 5 openstaande taken uit Productivity System (alle
     categorieën), gesorteerd op datum via een best-effort parser
