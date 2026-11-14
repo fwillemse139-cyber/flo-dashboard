@@ -31,32 +31,28 @@ aanpak.
   Productivity System, Connected Tools, Markets)
 - `js/marketsCore.js` — gedeelde beursuren-logica (Home en Markets gebruiken 'm allebei)
 - `assets/favicon.svg` + het logo in `js/main.js` (`LOGO_MARK`/`LOGO_WORD`,
-  inline SVG) — 14 nov 2026: door Claude zelf ontworpen op verzoek van
-  Floris ("ander logo, creëer sterker logo"), ter vervanging van zijn
-  eigen PNG-logo's van 10 sept (staan in de git-historie). Concept: een F
-  opgebouwd uit dashboard-balken (stam + twee balken van verschillende
-  lengte) met een groene live-stip (#10b981, dezelfde kleur als --done);
-  het woordmerk "FLO." is getekend uit dezelfde bouwstenen (afgeronde
-  balken + ring) met dezelfde stip als punt. Inline i.p.v. <img> zodat
-  `css/dashboard.css` de onderdelen apart kan animeren: de opbouw (stam
-  groeit omhoog, balken schuiven uit, stip popt, letters stijgen op)
-  speelt alleen bij het **openen van de app** — `renderShell()` wordt bij
-  elke navigatie opnieuw aangeroepen, dus een module-level
-  `hasRenderedOnce`-vlag bepaalt of `.brand-animate` wordt toegevoegd. De
-  pulserende ring om de stip loopt continu (subtiel). Alles uit bij
+  inline SVG) — 14 nov 2026, **tweede versie** (de eerste, een witte F van
+  balken + groene stip op een donkere tegel, vond Floris niet sterk genoeg:
+  donker-op-donker viel niet op in de zijbalk en het idee was generiek).
+  Nu: een **italic F met schuin afgesneden armen en voet** (-8° skew, de
+  arm-uiteinden wijzen omhoog = groei, één vormtaal) in wit-naar-mint op een
+  **felgroene tegel** (#4ef0b0 → #10b981 → #047857, met een lichtvlek en een
+  zachte schaduw onder de F). Gekozen na een vergelijking van 4 concepten
+  (schuine F op groen / F met koerslijn / één vloeiende bocht / wit blok met
+  uitgesneden F), op 16–150px en op donker én licht: alleen de schuine F
+  bleef op 16px sterk én viel op in een donkere UI. Het woordmerk "FLO." is
+  uit dezelfde schuine bouwstenen getekend (italic, schuine voet/uiteinden)
+  met een groene punt. Inline i.p.v. <img> zodat `css/dashboard.css` de
+  onderdelen apart kan animeren: tegel schaalt in, stam groeit omhoog, armen
+  schuiven uit, een glans glijdt over de tegel, letters stijgen op — alleen
+  bij het **openen van de app** (`renderShell()` draait bij elke navigatie
+  opnieuw, dus een module-level `hasRenderedOnce`-vlag bepaalt of
+  `.brand-animate` wordt toegevoegd); de glans speelt daarnaast bij hover
+  op het logo. Een CSS-`transform` op een SVG-element overschrijft het
+  `transform`-attribuut, daarom zit de skew van de glans op een binnenste
+  element en de animatie op het buitenste. Alles uit bij
   `prefers-reduced-motion`. `favicon.svg` is dezelfde F zonder animatie.
-  De keyframes staan in `css/dashboard.css` (`lm-*` en `wm-*`).
-
-## Pagina's
-
-Nav: **Home / Productivity System / Portfolio / Identity** (Health en Finance zijn op 14 nov 2026 weggehaald, zie hieronder). Van de
-widgets die oorspronkelijk (8 sept 2026) hun eigen nav-item hadden zijn
-Tasks, Werksessie, Markets en Connected Tools sindsdien uitsluitend
-widgets ÓP Home (naast/onder elkaar in een grid) — hun `section-*.js`-
-bestanden bestaan als losse modules met een `init(rootEl)` die in een
-willekeurige container gemonteerd kan worden; Werksessie wordt zowel op
-Home als op Health gemount (zie hieronder).
-
+  Keyframes: `lm-*` en `wm-*` in `css/dashboard.css`.
 - **Home**: het hele dashboard in één oogopslag —
   - **Deadlines**: top 5 openstaande taken uit Productivity System (alle
     categorieën), gesorteerd op datum via een best-effort parser

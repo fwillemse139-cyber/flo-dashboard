@@ -1,11 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <defs>
-<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#262626"/><stop offset="1" stop-color="#0c0c0c"/></linearGradient>
-<linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfcfcf"/></linearGradient>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4ef0b0"/><stop offset=".55" stop-color="#10b981"/><stop offset="1" stop-color="#047857"/></linearGradient>
+<radialGradient id="hi" cx=".25" cy=".1" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#d9fbea"/></linearGradient>
 </defs>
-<rect width="64" height="64" rx="17" fill="url(#bg)"/>
-<rect x="19" y="15" width="9" height="34" rx="4.5" fill="url(#fg)"/>
-<rect x="19" y="15" width="27" height="9" rx="4.5" fill="url(#fg)"/>
-<rect x="19" y="28.5" width="15" height="9" rx="4.5" fill="url(#fg)"/>
-<circle cx="41.5" cy="33" r="4.5" fill="#10b981"/>
+<rect width="64" height="64" rx="18" fill="url(#bg)"/>
+<rect width="64" height="64" rx="18" fill="url(#hi)"/>
+<g transform="translate(32 32) skewX(-8) translate(-32 -32)" fill="url(#fg)" stroke="url(#fg)" stroke-width="2.6" stroke-linejoin="round">
+<polygon points="20.3,15.3 28.7,15.3 28.7,43.6 24.4,47.9 20.3,47.9"/>
+<polygon points="26,15.3 48.5,15.3 44.2,24.4 26,24.4"/>
+<polygon points="26,30.4 40.6,30.4 37.2,38.6 26,38.6"/>
+</g>
 </svg>

@@ -38,23 +38,22 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--border);}
 a{color:inherit;}
 
 .brand{display:flex;align-items:center;gap:12px;}
-.logo{width:38px;height:38px;flex-shrink:0;filter:drop-shadow(0 6px 14px rgba(0,0,0,.45));}
+.logo{width:40px;height:40px;flex-shrink:0;filter:drop-shadow(0 6px 16px rgba(16,185,129,.28));cursor:default;}
 .logo svg{width:100%;height:100%;display:block;overflow:visible;}
-.wordmark{height:13px;width:auto;display:block;color:var(--text);overflow:visible;}
+.wordmark{height:14px;width:auto;display:block;color:var(--text);overflow:visible;}
 .tagline{font-size:11px;color:var(--muted-soft);margin-top:5px;letter-spacing:.02em;}
 
-/* Logo: een F uit dashboard-balken met een groene live-stip. De stip pulseert
-   continu (subtiel); de opbouw-animatie speelt alleen bij het eerste openen
-   van de app (zie main.js's hasRenderedOnce), niet bij elke navigatie. */
-.lm-grow,.wm-l,.wm-dot,.lm-dot,.lm-tile{transform-box:fill-box;}
-.lm-pulse{transform-box:fill-box;transform-origin:center;animation:lm-pulse 3s cubic-bezier(.2,.6,.3,1) 1.2s infinite;}
-@keyframes lm-pulse{0%{transform:scale(1);opacity:.55;}70%,100%{transform:scale(2.6);opacity:0;}}
-
+/* Logo: italic F op een groene tegel. De opbouw (tegel, stam, armen, glans,
+   woordmerk) speelt alleen bij het eerste openen van de app (zie main.js's
+   hasRenderedOnce), niet bij elke navigatie. De glans glijdt ook bij hover. */
+.lm-tile,.lm-part,.lm-sheen,.wm-l,.wm-dot{transform-box:fill-box;}
+.lm-sheen{opacity:0;}
+.logo:hover .lm-sheen{animation:lm-sheen 1s cubic-bezier(.4,0,.2,1);}
 .brand-animate .lm-tile{transform-origin:center;animation:lm-tile .6s cubic-bezier(.16,1,.3,1) both;}
-.brand-animate .lm-stem{transform-origin:50% 100%;animation:lm-y .6s cubic-bezier(.16,1,.3,1) .1s both;}
-.brand-animate .lm-top{transform-origin:0 50%;animation:lm-x .6s cubic-bezier(.16,1,.3,1) .22s both;}
-.brand-animate .lm-mid{transform-origin:0 50%;animation:lm-x .6s cubic-bezier(.16,1,.3,1) .32s both;}
-.brand-animate .lm-dot{transform-origin:center;animation:lm-pop .55s cubic-bezier(.34,1.56,.64,1) .6s both;}
+.brand-animate .lm-stem{transform-origin:50% 100%;animation:lm-y .6s cubic-bezier(.16,1,.3,1) .12s both;}
+.brand-animate .lm-top{transform-origin:0 50%;animation:lm-x .55s cubic-bezier(.16,1,.3,1) .28s both;}
+.brand-animate .lm-mid{transform-origin:0 50%;animation:lm-x .55s cubic-bezier(.16,1,.3,1) .4s both;}
+.brand-animate .lm-sheen{animation:lm-sheen 1.1s cubic-bezier(.4,0,.2,1) .9s both;}
 .brand-animate .wm-l,.brand-animate .wm-dot{animation:wm-up .55s cubic-bezier(.16,1,.3,1) both;}
 .brand-animate .wm-l:nth-child(1){animation-delay:.34s;}
 .brand-animate .wm-l:nth-child(2){animation-delay:.42s;}
@@ -64,12 +63,12 @@ a{color:inherit;}
 @keyframes lm-tile{from{opacity:0;transform:scale(.82);}to{opacity:1;transform:scale(1);}}
 @keyframes lm-y{from{transform:scaleY(0);}to{transform:scaleY(1);}}
 @keyframes lm-x{from{transform:scaleX(0);}to{transform:scaleX(1);}}
-@keyframes lm-pop{from{transform:scale(0);}to{transform:scale(1);}}
+@keyframes lm-sheen{0%{opacity:0;transform:translateX(-40px);}15%{opacity:1;}100%{opacity:0;transform:translateX(110px);}}
 @keyframes wm-up{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
 @keyframes wm-fade{from{opacity:0;}to{opacity:1;}}
 @media (prefers-reduced-motion: reduce){
-  .lm-pulse{animation:none;opacity:0;}
-  .brand-animate .lm-tile,.brand-animate .lm-stem,.brand-animate .lm-top,.brand-animate .lm-mid,.brand-animate .lm-dot,
+  .logo:hover .lm-sheen{animation:none;}
+  .brand-animate .lm-tile,.brand-animate .lm-stem,.brand-animate .lm-top,.brand-animate .lm-mid,.brand-animate .lm-sheen,
   .brand-animate .wm-l,.brand-animate .wm-dot,.brand-animate .tagline{animation:none;}
 }
 
