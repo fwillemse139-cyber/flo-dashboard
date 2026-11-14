@@ -49,7 +49,7 @@ aanpak.
 
 ## Pagina's
 
-Nav: **Home / Productivity System / Health / Finance / Identity**. Van de
+Nav: **Home / Productivity System / Portfolio / Identity** (Health en Finance zijn op 14 nov 2026 weggehaald, zie hieronder). Van de
 widgets die oorspronkelijk (8 sept 2026) hun eigen nav-item hadden zijn
 Tasks, Werksessie, Markets en Connected Tools sindsdien uitsluitend
 widgets ÓP Home (naast/onder elkaar in een grid) — hun `section-*.js`-
@@ -158,6 +158,56 @@ mijn telefoon en laptop" terwijl het gewoon verouderde client-code was.
     gevonden dat 'm genoteerd is op Stuttgart: `PPFD.SG`. Beide in EUR,
     geen `convertToUsd` nodig. Zelfde ticker-key-koppeling als altijd
     tussen `SYMBOL_MAP` (dit bestand) en `TICKERS` in `js/marketsCore.js`.
+
+## Portfolio-pagina (14 nov 2026, op verzoek van Floris — "zoals getquin")
+
+Nav is nu **Home / Productivity System / Portfolio / Identity**. Dit is een
+nieuwe pagina, los van de weggehaalde Finance-pagina.
+
+- **`js/portfolioData.js`** — pure data: `HOLDINGS` (symbool → naam, Yahoo-
+  ticker, noteringsvaluta, soort), `TRADES` (`[datum, symbool, buy|sell,
+  aantal, prijs]`), `DIVIDENDS`, `CASH_USD`. Komt uit het Revolut-
+  beleggingsafschrift van 14 nov 2026 (13 apr–14 nov). **Nieuwe aankopen:
+  een regel aan `TRADES` toevoegen** (Floris stuurt een nieuw afschrift,
+  ik zet het erin) — er is bewust geen Notion-blob/UI voor, want het is
+  zelden veranderende brondata. Aantallen per instrument zijn gecontroleerd
+  tegen de "Portfolio breakdown" van het afschrift (tellen exact op).
+- **`js/portfolioCore.js`** — rekenwerk zonder DOM (`computeState`,
+  `buildSeries`, `priceAt`). Alles in EUR; USD-posities worden omgerekend
+  met de EUR/USD-koers (`EURUSD=X`) van de dag van de aankoop (kostprijs)
+  resp. van nu (waarde). Kostprijs via gemiddelde-kostprijs-methode (een
+  verkoop haalt een evenredig deel van de kostprijs weg). "Netto ingelegd"
+  = som aankopen − som verkopen; totaalresultaat = waarde − netto ingelegd +
+  dividend. Getest in Node tegen het afschrift: USD-posities exact
+  ($763,24), EUR-posities op €0,10 na (Revolut rondt de getoonde koersen af).
+- **`api/portfolio.js`** — Yahoo Finance chart-endpoint (zelfde bron als
+  `api/quotes.js`, geen key): live koers, vorige slotkoers en dagelijkse
+  historie sinds de eerste aankoop voor alle `HOLDINGS` + de wisselkoers.
+  Importeert `../js/portfolioData.js` (zelfde patroon als
+  `api/deadline-reminders.js` met `deadlineParser.js`), dus er wordt nooit
+  een willekeurig symbool opgevraagd. 2 min edge-cache. Let op: Yahoo's
+  ticker voor Silver is `PPFD.SG` (Stuttgart, niet `.DE`) en voor SK Hynix
+  het ADR `SKHY` (USD) — dit is NIET de KRW-notering `000660.KS` uit de
+  Markets-widget.
+- **`js/section-portfolio.js`** — de pagina: totale waarde met count-up,
+  eigen SVG-lijngrafiek (waarde vs. ingelegd, 1M/3M/Alles, hover-tooltip,
+  lijn tekent zich bij openen), vier stat-tegels met sparklines, een donut
+  die je kunt omschakelen tussen positie/type/valuta, "slimme inzichten"
+  (zinnen afgeleid uit de cijfers: concentratie >40%, sterkste/zwakste
+  positie, grootste mover vandaag, dollar-aandeel, niet-belegde cash) en een
+  posities-tabel met 30-dagen-sparkline en gewichtsbalk. Ververst elke 5
+  min; de intro-animaties (`.pf-enter`) spelen alleen bij het openen, niet
+  bij die verversing. `prefers-reduced-motion` zet alles uit.
+- **Ontwerpreferentie**: het Capitalio-dashboard
+  (`registry.watermelon.sh/r/capitalio-dashboard.json`, een React/recharts-
+  block). Niet geïnstalleerd — dit is een vanilla-JS-app zonder React/
+  shadcn — maar de opzet is nagebouwd: samenvattingstegels met mini-
+  grafiekjes, prestatiegrafiek, donut met legenda, holdings-tabel,
+  inzichten-paneel, stippenraster en groeiende voortgangsbalken. Eigen
+  twist: donut-modi, inzichten uit eigen data, sparkline per positie.
+- Bewust niet gedaan: intraday-/websocket-koersen (Yahoo is vertraagd) en
+  het Revolut-"Cash top-up"-verloop als stortingen; cash is alleen het
+  eindsaldo van de USD-rekening (`CASH_USD`).
 
 ## Deadline-herinneringen via Telegram (9 sept 2026, was eerst e-mail)
 

@@ -1,10 +1,12 @@
 import * as home from "./section-home.js";
 import * as productivity from "./section-productivity.js";
+import * as portfolio from "./section-portfolio.js";
 import * as identity from "./section-identity.js";
 
 var NAV_ITEMS = [
   { id: "home", label: "Home" },
   { id: "productivity", label: "Productivity System" },
+  { id: "portfolio", label: "Portfolio" },
   { id: "identity", label: "Identity" }
 ];
 
@@ -83,6 +85,7 @@ function mountSection(id) {
   try {
     if (id === "home") home.init(contentEl, navigateTo);
     else if (id === "productivity") productivity.init(contentEl);
+    else if (id === "portfolio") portfolio.init(contentEl);
     else if (id === "identity") identity.init(contentEl);
   } catch (err) {
     var msg = (err && err.message) || String(err);
