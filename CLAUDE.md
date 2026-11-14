@@ -272,6 +272,20 @@ Notion — dit blijft een door Claude getriggerde, handmatige sync.
 
 ## Health en Finance (8 sept 2026, nieuwe pagina's)
 
+> **14 nov 2026: beide pagina's zijn op verzoek van Floris weer uit de app
+> gehaald.** Nav is nu **Home / Productivity System / Identity**.
+> `js/section-health.js`, `js/section-suerte.js` en `js/barChart.js`
+> zijn verwijderd (staan in de git-historie, laatste commit met de
+> Finance-pagina: `54003f1`), en de Health- en Finance-kaarten op Home zijn
+> weg. **De data blijft gewoon in Notion staan** (`?target=financial`
+> met de geïmporteerde 645 entries + 5 rekeningen, `?target=health` en
+> `?target=worksessions`) en `api/notion.js` is niet aangeraakt — alleen
+> de UI is weg. Bewust laten staan: de "Health check-in" op Home
+> (`section-health-quicklog.js`, schrijft naar `flo.health_log`) en de
+> werksessie-widget; die hadden hun enige weergave op de Health-pagina,
+> dus ze loggen nu data zonder viewer. Alles hieronder over deze twee
+> pagina's is dus historisch, geen huidige staat.
+
 Nav is nu **Home / Productivity System / Health / Finance / Identity**
 (de pagina heette eerst "Suerte", het bestand heet intern nog steeds
 `js/section-suerte.js` en de Notion-financial-target nog `?target=financial`

@@ -26,38 +26,6 @@ function productivitySummary() {
   return html;
 }
 
-function healthSummary() {
-  var entries = loadArray("flo.health_log");
-  var today = new Date().toISOString().slice(0, 10);
-  var loggedToday = entries.some(function (e) { return e.date === today; });
-  var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  var week = entries.filter(function (e) { return new Date(e.date).getTime() >= cutoff; });
-  function avg(field) {
-    var vals = week.map(function (e) { return e[field]; }).filter(function (v) { return v != null; });
-    if (vals.length === 0) return "—";
-    return (vals.reduce(function (a, b) { return a + b; }, 0) / vals.length).toFixed(1);
-  }
-  var html = '<div class="deadline">' + (loggedToday ? "Vandaag al gelogd" : "Nog niet gelogd vandaag") + '</div>';
-  html += '<div class="home-line"><span>Gem. energie (week)</span><span class="deadline">' + avg("energy") + '</span></div>';
-  html += '<div class="home-line"><span>Gem. productiviteit (week)</span><span class="deadline">' + avg("productivity") + '</span></div>';
-  return html;
-}
-
-function suerteSummary() {
-  var financial = { accounts: [], entries: [] };
-  try {
-    var raw = localStorage.getItem("flo.suerte_financial");
-    if (raw) financial = JSON.parse(raw);
-  } catch (e) {}
-  var monthKey = new Date().toISOString().slice(0, 7);
-  var entriesThisMonth = (financial.entries || []).filter(function (e) { return e.month === monthKey; });
-  var spend = entriesThisMonth.filter(function (e) { return e.type === "uitgave"; }).reduce(function (a, e) { return a + e.amount; }, 0);
-  var income = entriesThisMonth.filter(function (e) { return e.type === "inkomen"; }).reduce(function (a, e) { return a + e.amount; }, 0);
-  var html = '<div class="home-line"><span>Uitgaven deze maand</span><span class="deadline">€' + spend.toFixed(2) + '</span></div>';
-  html += '<div class="home-line"><span>Inkomsten deze maand</span><span class="deadline">€' + income.toFixed(2) + '</span></div>';
-  return html;
-}
-
 function identitySummary() {
   var state = { statement: "", traits: [], evidence: [], goals: [] };
   try {
@@ -92,8 +60,6 @@ export function init(rootEl, navigateTo) {
       '<div class="home-card home-card-wide"><div class="home-card-title">Markets</div><div id="home-w-markets"></div></div>' +
       '<div class="home-card home-card-wide"><div class="home-card-title">Connected Tools</div><div id="home-w-tools"></div></div>' +
       '<div class="home-card" data-nav="productivity" style="cursor:pointer;"><div class="home-card-title">Productivity System</div>' + productivitySummary() + '</div>' +
-      '<div class="home-card" data-nav="health" style="cursor:pointer;"><div class="home-card-title">Health</div>' + healthSummary() + '</div>' +
-      '<div class="home-card" data-nav="suerte" style="cursor:pointer;"><div class="home-card-title">Finance</div>' + suerteSummary() + '</div>' +
       '<div class="home-card" data-nav="identity" style="cursor:pointer;"><div class="home-card-title">Identity</div>' + identitySummary() + '</div>' +
     '</div>';
 
