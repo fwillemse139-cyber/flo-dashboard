@@ -6,6 +6,7 @@ var data = null;        // { quotes, fx, updated_at }
 var state = null;       // computeState(...)
 var rangeDays = 0;      // 0 = alles
 var allocMode = "sym";   // donut: sym | kind | ccy
+var periodMode = "day"; // rendement-staafjes: day | week | month
 var errorMsg = "";
 var refreshTimer = null;
 var resizeHandler = null;
@@ -37,7 +38,7 @@ export function init(rootEl) {
   }, 5 * 60 * 1000);
   resizeHandler = function () {
     if (!container || !container.isConnected) { window.removeEventListener("resize", resizeHandler); return; }
-    if (state) drawChart(false);
+    if (state) { drawChart(false); drawBars(false); }
   };
   window.addEventListener("resize", resizeHandler);
 }
@@ -168,8 +169,135 @@ function spark(values, w, h, tone, i) {
   return '<svg class="pf-spark ' + tone + '" viewBox="0 0 ' + w + " " + h + '" width="' + w + '" height="' + h + '" style="--i:' + (i || 0) + '"><path d="' + d + '" pathLength="1"/></svg>';
 }
 
+// ---------- Rendement per dag / week / maand ----------
+// Verandering van het resultaat (waarde − ingelegd) over een periode, dus
+// aankopen/verkopen tellen niet als winst of verlies mee.
+var dayLabelFmt = new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", month: "short" });
+var shortDateFmt = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short" });
+var monthLabelFmt = new Intl.DateTimeFormat("nl-NL", { month: "long", year: "numeric" });
+
+function weekStartOf(t) {
+  var d = new Date(t * 1000);
+  var back = (d.getUTCDay() + 6) % 7; // maandag = 0
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - back) / 1000;
+}
+function monthKeyOf(t) { var d = new Date(t * 1000); return d.getUTCFullYear() * 12 + d.getUTCMonth(); }
+
+function periodRow(from, to, change, prevValue, investedEnd, label, partial) {
+  var base = prevValue >= 1 ? prevValue : investedEnd;
+  return { from: from, to: to, change: change, pct: base > 0 ? change / base * 100 : 0, label: label, partial: partial };
+}
+
+function periodRows(mode) {
+  var s = state.series, rows = [];
+  if (!s.length) return rows;
+  var pls = s.map(function (p) { return p.value - p.invested; });
+  var todayKey = Math.floor(Date.now() / 86400000);
+  if (mode === "day") {
+    s.forEach(function (p, i) {
+      var wd = new Date(p.t * 1000).getUTCDay();
+      if (wd === 0 || wd === 6) return; // weekend: geen koersen, dus geen eigen dag
+      var isToday = Math.floor(p.t / 86400) === todayKey;
+      rows.push(periodRow(p.t, p.t, pls[i] - (i ? pls[i - 1] : 0), i ? s[i - 1].value : 0, p.invested,
+        dayLabelFmt.format(dayDate(p.t)) + (isToday ? " (vandaag)" : ""), isToday));
+    });
+    return rows;
+  }
+  var groups = [], cur = null;
+  s.forEach(function (p, i) {
+    var key = mode === "week" ? weekStartOf(p.t) : monthKeyOf(p.t);
+    if (!cur || cur.key !== key) { cur = { key: key, first: p.t }; groups.push(cur); }
+    cur.last = p.t; cur.lastIdx = i;
+  });
+  groups.forEach(function (g, gi) {
+    var prev = gi ? groups[gi - 1].lastIdx : -1;
+    var partial = gi === groups.length - 1;
+    var label;
+    if (mode === "week") {
+      var mon = g.key, sun = mon + 6 * 86400;
+      label = shortDateFmt.format(new Date((mon + 43200) * 1000)) + " – " + shortDateFmt.format(new Date((sun + 43200) * 1000)) + (partial ? " (lopend)" : "");
+    } else {
+      label = monthLabelFmt.format(dayDate(g.first)) + (partial ? " (lopend)" : "");
+    }
+    rows.push(periodRow(g.first, g.last, pls[g.lastIdx] - (prev >= 0 ? pls[prev] : 0), prev >= 0 ? s[prev].value : 0, s[g.lastIdx].invested, label, partial));
+  });
+  return rows;
+}
+
+function visibleRows(mode) {
+  var rows = periodRows(mode);
+  return mode === "day" ? rows.slice(-30) : mode === "week" ? rows.slice(-26) : rows;
+}
+
+function periodsHtml() {
+  var rows = visibleRows(periodMode);
+  var html = '<div class="pf-panel-head"><div class="home-card-title" style="margin:0">Rendement per periode</div><div class="pf-seg-toggle" id="pf-pmode">';
+  [["day", "Dag"], ["week", "Week"], ["month", "Maand"]].forEach(function (m) {
+    html += '<button data-pmode="' + m[0] + '" class="' + (periodMode === m[0] ? "active" : "") + '">' + m[1] + '</button>';
+  });
+  html += '</div></div><div class="pf-bars" id="pf-bars"></div><div class="pf-plist">';
+  rows.slice(-8).reverse().forEach(function (r, i) {
+    html += '<div class="pf-prow" style="--i:' + i + '"><span>' + r.label + '</span><b class="' + cls(r.change) + '">' + fmtSigned(r.change) + '</b><span class="pf-chip ' + cls(r.change) + '">' + fmtPct(r.pct) + '</span></div>';
+  });
+  return html + "</div>";
+}
+
+function drawBars(animate) {
+  var host = container && container.querySelector("#pf-bars");
+  if (!host || !state) return;
+  var rows = visibleRows(periodMode);
+  if (!rows.length) { host.innerHTML = ""; return; }
+  var w = host.clientWidth || 600, h = 150, pad = 8;
+  var maxPos = Math.max(0, Math.max.apply(null, rows.map(function (r) { return r.change; })));
+  var maxNeg = Math.max(0, -Math.min.apply(null, rows.map(function (r) { return r.change; })));
+  var scale = (h - 2 * pad) / ((maxPos + maxNeg) || 1);
+  var y0 = pad + maxPos * scale;
+  var bw = w / rows.length;
+  var bars = "";
+  rows.forEach(function (r, i) {
+    var bh = Math.max(Math.abs(r.change) * scale, 1.5);
+    var x = i * bw + bw * 0.18;
+    var y = r.change >= 0 ? y0 - bh : y0;
+    bars += '<rect class="pf-bar ' + (r.change >= 0 ? "pos" : "neg") + '" data-i="' + i + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + (bw * 0.64).toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" style="--i:' + Math.min(i, 40) + '"/>';
+  });
+  host.className = "pf-bars" + (animate && !REDUCED ? " pf-draw" : "");
+  host.innerHTML = '<svg viewBox="0 0 ' + w + " " + h + '" width="' + w + '" height="' + h + '"><line x1="0" x2="' + w + '" y1="' + y0.toFixed(1) + '" y2="' + y0.toFixed(1) + '" class="pf-zero"/>' + bars + '</svg><div class="pf-tip" id="pf-btip"></div>';
+
+  var tip = host.querySelector("#pf-btip");
+  var all = host.querySelectorAll(".pf-bar");
+  function show(e) {
+    var rect = host.getBoundingClientRect();
+    var i = Math.max(0, Math.min(rows.length - 1, Math.floor((e.clientX - rect.left) / rect.width * rows.length)));
+    var r = rows[i];
+    all.forEach(function (b) { b.classList.toggle("hl", b.getAttribute("data-i") === String(i)); });
+    host.classList.add("hover");
+    tip.innerHTML = '<div class="pf-tip-d">' + r.label + '</div><div class="pf-tip-v ' + cls(r.change) + '">' + fmtSigned(r.change) + '</div><div class="pf-tip-s">' + fmtPct(r.pct) + '</div>';
+    var tw = tip.offsetWidth, cx = (i + 0.5) * bw;
+    tip.style.left = Math.max(0, Math.min(cx - tw / 2, w - tw)) + "px";
+  }
+  host.onpointermove = show;
+  host.onpointerdown = show;
+  host.onpointerleave = function () { host.classList.remove("hover"); all.forEach(function (b) { b.classList.remove("hl"); }); };
+}
+
+function bindPeriods(animate) {
+  var card = container.querySelector("#pf-periods");
+  if (!card) return;
+  drawBars(animate);
+  card.querySelectorAll("#pf-pmode button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      periodMode = b.getAttribute("data-pmode");
+      card.innerHTML = periodsHtml();
+      bindPeriods(true);
+    });
+  });
+}
+
 function render(animate) {
   var t = state.totals;
+  var wr = periodRows("week"), wk = wr.length ? wr[wr.length - 1] : null;
+  var dr = periodRows("day"), dl = dr.length ? dr[dr.length - 1] : null;
+  var weekChip = wk ? '<span class="pf-chip ' + cls(wk.change) + '">' + fmtSigned(wk.change) + ' \u00b7 ' + fmtPct(wk.pct) + '</span><span class="pf-muted">deze week</span>' : "";
   var upDown = cls(t.pl);
   var html = '<div class="pf-root' + (animate ? " pf-enter" : "") + '">';
   html += '<div class="section-header"><h2>Portfolio</h2><div class="tagline">Live waarde van je beleggingen in euro</div></div>';
@@ -179,9 +307,9 @@ function render(animate) {
   html += '<div class="pf-label">Totale waarde <span class="pf-live"><i></i>Live</span></div>';
   html += '<div class="pf-value" id="pf-value">' + fmtEur(t.value) + '</div>';
   html += '<div class="pf-sub"><span class="pf-chip ' + upDown + '">' + fmtSigned(t.pl) + ' · ' + fmtPct(t.plPct) + '</span><span class="pf-muted">totaal resultaat</span>';
-  html += '<span class="pf-chip ' + cls(t.day) + '">' + fmtSigned(t.day) + ' · ' + fmtPct(t.dayPct) + '</span><span class="pf-muted">vandaag</span></div>';
+  html += '<span class="pf-chip ' + cls(dl ? dl.change : t.day) + '">' + (dl ? fmtSigned(dl.change) + ' · ' + fmtPct(dl.pct) : fmtSigned(t.day) + ' · ' + fmtPct(t.dayPct)) + '</span><span class="pf-muted">' + (dl && !dl.partial ? "laatste handelsdag" : "vandaag") + '</span>' + weekChip + '</div>';
   html += '</div><div class="pf-range" id="pf-range">';
-  [["1M", 30], ["3M", 90], ["Alles", 0]].forEach(function (r) {
+  [["1W", 7], ["1M", 30], ["3M", 90], ["Alles", 0]].forEach(function (r) {
     html += '<button data-days="' + r[1] + '" class="' + (rangeDays === r[1] ? "active" : "") + '">' + r[0] + '</button>';
   });
   html += '</div></div>';
@@ -202,6 +330,8 @@ function render(animate) {
     html += '<div class="pf-stat" style="--i:' + i + '"><div class="pf-label">' + s[0] + '</div><div class="pf-stat-row"><div class="pf-stat-v ' + s[2] + '">' + s[1] + '</div>' + s[3] + '</div></div>';
   });
   html += '</div>';
+
+  html += '<div class="home-card pf-periods" id="pf-periods">' + periodsHtml() + '</div>';
 
   html += '<div class="pf-duo"><div class="home-card pf-panel" id="pf-donut-panel">' + donutPanelHtml() + '</div>';
   html += '<div class="home-card pf-panel">' + insightsHtml() + '</div></div>';
@@ -238,8 +368,11 @@ function render(animate) {
   });
   drawChart(animate);
   bindDonut(animate);
+  bindPeriods(animate);
   if (animate) countUp(container.querySelector("#pf-value"), t.value);
 }
+
+function dayDate(t) { return new Date((t - 43200) * 1000); }
 
 function priceAtFx() {
   var fx = data && data.fx;
@@ -303,7 +436,7 @@ function drawChart(animate) {
     '</svg><div class="pf-tip" id="pf-tip"></div>';
 
   var axis = container.querySelector("#pf-axis");
-  if (axis) axis.innerHTML = "<span>" + dateFmt.format(new Date(series[0].t * 1000)) + "</span><span>" + dateFmt.format(new Date(last.t * 1000)) + "</span>";
+  if (axis) axis.innerHTML = "<span>" + dateFmt.format(dayDate(series[0].t)) + "</span><span>" + dateFmt.format(dayDate(last.t)) + "</span>";
 
   var cross = host.querySelector("#pf-cross"), dot = host.querySelector("#pf-dot"), tip = host.querySelector("#pf-tip");
   function show(e) {
@@ -316,7 +449,7 @@ function drawChart(animate) {
     dot.setAttribute("cx", cx); dot.setAttribute("cy", cy);
     host.classList.add("hover");
     var pl = p.value - p.invested;
-    tip.innerHTML = '<div class="pf-tip-d">' + dateFmt.format(new Date(p.t * 1000)) + '</div><div class="pf-tip-v">' + fmtEur(p.value) + '</div><div class="pf-tip-s">ingelegd ' + fmtEur(p.invested) + ' · <span class="' + cls(pl) + '">' + fmtSigned(pl) + '</span></div>';
+    tip.innerHTML = '<div class="pf-tip-d">' + dateFmt.format(dayDate(p.t)) + '</div><div class="pf-tip-v">' + fmtEur(p.value) + '</div><div class="pf-tip-s">ingelegd ' + fmtEur(p.invested) + ' · <span class="' + cls(pl) + '">' + fmtSigned(pl) + '</span></div>';
     var tw = tip.offsetWidth;
     tip.style.left = Math.max(0, Math.min(cx - tw / 2, w - tw)) + "px";
   }

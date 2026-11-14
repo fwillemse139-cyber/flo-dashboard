@@ -198,6 +198,24 @@ nieuwe pagina, los van de weggehaalde Finance-pagina.
   posities-tabel met 30-dagen-sparkline en gewichtsbalk. Ververst elke 5
   min; de intro-animaties (`.pf-enter`) spelen alleen bij het openen, niet
   bij die verversing. `prefers-reduced-motion` zet alles uit.
+- **Rendement per dag / week / maand (14 nov 2026)**: kaart "Rendement
+  per periode" met een Dag/Week/Maand-schakelaar, staafjes (groen/rood,
+  hover-tooltip) en een lijst van de laatste 8 perioden, plus een "deze
+  week"-chip bovenin en een 1W-knop bij de grote grafiek (`periodRows()`
+  in `section-portfolio.js`). Een periode-rendement is de verandering van
+  het **resultaat** (waarde − ingelegd), dus een aankoop of verkoop telt niet
+  als winst/verlies; percentage = verandering / waarde aan het begin van de
+  periode (of ingelegd als die nog 0 was). Weekenden hebben geen eigen
+  dag (geen koersen); weken lopen maandag–zondag; de laatste week/maand is
+  "(lopend)". De "vandaag"-chip bovenin komt uit dezelfde reeks als de
+  staafjes (dus inclusief EUR/USD-beweging) en heet in het weekend/buiten
+  beurstijd "laatste handelsdag" — `totals.day` uit `portfolioCore.js`
+  rekent met een vaste wisselkoers en kwam daardoor ~€4 anders uit.
+  **Tijdzone-valkuil**: de reeks-tijdstempels zijn 23:59:59 UTC van de dag
+  en vallen in NL al op de volgende dag; alle datumlabels gaan dus via
+  `dayDate(t)` (12 uur terug). Niet gebouwd: een intraday-1D-grafiek (zou
+  5-minuten-koersen per beurs met verschillende openingstijden + FX
+  vragen; nu alleen dagkoersen).
 - **Ontwerpreferentie**: het Capitalio-dashboard
   (`registry.watermelon.sh/r/capitalio-dashboard.json`, een React/recharts-
   block). Niet geïnstalleerd — dit is een vanilla-JS-app zonder React/
