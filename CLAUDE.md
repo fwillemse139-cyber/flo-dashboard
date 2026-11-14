@@ -30,19 +30,22 @@ aanpak.
 - `js/section-*.js` — één module per sectie (Home, Agenda, Tasks,
   Productivity System, Connected Tools, Markets)
 - `js/marketsCore.js` — gedeelde beursuren-logica (Home en Markets gebruiken 'm allebei)
-- `assets/` — Florens eigen logo-ontwerp (10 sept 2026, aangeleverd als
-  PNG's in Downloads): `logo-f.png` (het zwarte "F"-merk, transparante
-  achtergrond, gebruikt in de sidebar-badge + als bron voor `favicon.png`)
-  en `wordmark.png` (witte "Flo's Dashboard"-wordmark voor op de donkere
-  sidebar). Vervangen: de losse CSS-tekst-"F"/tekst-wordmark en de
-  inline-SVG-placeholder-favicon die er eerst stonden. Logo + wordmark
-  faden/schuiven eenmalig in bij het **openen van de app** (niet bij elke
-  paginawissel) — `js/main.js`'s `renderShell()` wordt bij elke navigatie
-  opnieuw aangeroepen (bouwt de hele shell inclusief brand opnieuw op),
-  dus een module-level `hasRenderedOnce`-vlag bepaalt of de
-  `.brand-animate`-class wordt toegevoegd (alleen de allereerste keer).
-  CSS-animatie zelf staat in `css/dashboard.css` (`@keyframes brand-in`),
-  met een `prefers-reduced-motion`-guard.
+- `assets/favicon.svg` + het logo in `js/main.js` (`LOGO_MARK`/`LOGO_WORD`,
+  inline SVG) — 14 nov 2026: door Claude zelf ontworpen op verzoek van
+  Floris ("ander logo, creëer sterker logo"), ter vervanging van zijn
+  eigen PNG-logo's van 10 sept (staan in de git-historie). Concept: een F
+  opgebouwd uit dashboard-balken (stam + twee balken van verschillende
+  lengte) met een groene live-stip (#10b981, dezelfde kleur als --done);
+  het woordmerk "FLO." is getekend uit dezelfde bouwstenen (afgeronde
+  balken + ring) met dezelfde stip als punt. Inline i.p.v. <img> zodat
+  `css/dashboard.css` de onderdelen apart kan animeren: de opbouw (stam
+  groeit omhoog, balken schuiven uit, stip popt, letters stijgen op)
+  speelt alleen bij het **openen van de app** — `renderShell()` wordt bij
+  elke navigatie opnieuw aangeroepen, dus een module-level
+  `hasRenderedOnce`-vlag bepaalt of `.brand-animate` wordt toegevoegd. De
+  pulserende ring om de stip loopt continu (subtiel). Alles uit bij
+  `prefers-reduced-motion`. `favicon.svg` is dezelfde F zonder animatie.
+  De keyframes staan in `css/dashboard.css` (`lm-*` en `wm-*`).
 
 ## Pagina's
 
