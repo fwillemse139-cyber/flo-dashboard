@@ -239,6 +239,14 @@ nieuwe pagina, los van de weggehaalde Finance-pagina.
   grafiekjes, prestatiegrafiek, donut met legenda, holdings-tabel,
   inzichten-paneel, stippenraster en groeiende voortgangsbalken. Eigen
   twist: donut-modi, inzichten uit eigen data, sparkline per positie.
+- **Aankoop na het afschrift (20 nov 2026)**: Anthropic (`ANT`, NASDAQ, USD,
+  ISIN US03703U1079) — 1 aandeel à $83, doorgegeven als screenshot uit de
+  Revolut-app, daarom als losse regel onderaan `TRADES`. `CASH_USD` is
+  daarvoor met $83 verlaagd (275,79 → 192,79) onder de **aanname** dat het
+  uit de wachtende cash is betaald; klopt dat niet, dan is dat getal het
+  eerste dat bijgesteld moet worden. Yahoo heeft van ANT nog maar één
+  koerspunt (net genoteerd), dus de historie van die positie begint op de
+  aankoopdag en `prevClose` is `null` (dagverschil per positie dan 0).
 - Bewust niet gedaan: intraday-/websocket-koersen (Yahoo is vertraagd) en
   het Revolut-"Cash top-up"-verloop als stortingen; cash is alleen het
   eindsaldo van de USD-rekening (`CASH_USD`).

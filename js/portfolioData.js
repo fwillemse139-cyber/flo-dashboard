@@ -15,7 +15,8 @@ export var HOLDINGS = {
   GOOGL: { name: "Alphabet", yahoo: "GOOGL", ccy: "USD", kind: "Aandeel" },
   ASML: { name: "ASML", yahoo: "ASML", ccy: "USD", kind: "Aandeel" },
   SNDK: { name: "SanDisk", yahoo: "SNDK", ccy: "USD", kind: "Aandeel" },
-  SKHY: { name: "SK Hynix", yahoo: "SKHY", ccy: "USD", kind: "Aandeel" }
+  SKHY: { name: "SK Hynix", yahoo: "SKHY", ccy: "USD", kind: "Aandeel" },
+  ANT: { name: "Anthropic", yahoo: "ANT", ccy: "USD", kind: "Aandeel" }
 };
 
 export var FX_YAHOO = "EURUSD=X";
@@ -52,7 +53,10 @@ export var TRADES = [
   ["2026-10-16", "SEC0", "buy", 3.00192122, 16.66],
   ["2026-10-30", "QUTM", "buy", 2.27066303, 22.02],
   ["2026-11-11", "SEC0", "buy", 6.42013353, 15.58],
-  ["2026-11-11", "VUAA", "buy", 1.72153629, 131.62]
+  ["2026-11-11", "VUAA", "buy", 1.72153629, 131.62],
+  // Na het afschrift van 14 nov: aankoop doorgegeven via een screenshot uit de Revolut-app
+  // (1 ANT à $83, geen kosten, effectenrekening, ISIN US03703U1079).
+  ["2026-11-20", "ANT", "buy", 1, 83]
 ];
 
 // [datum, symbool, bedrag in USD]
@@ -61,7 +65,8 @@ export var DIVIDENDS = [
   ["2026-11-10", "MA", 0.15]
 ];
 
-// Niet-geïnvesteerde cash op de USD-beleggingsrekening (14 nov 2026).
-export var CASH_USD = 275.79;
+// Niet-geïnvesteerde cash op de USD-beleggingsrekening: $275,79 volgens het afschrift van
+// 14 nov, minus de $83 voor ANT op 20 nov (aanname: betaald uit die wachtende cash).
+export var CASH_USD = 192.79;
 
 export var FIRST_TRADE_DATE = TRADES[0][0];

@@ -355,7 +355,7 @@ function render(animate) {
   html += '</div>';
 
   var updated = data.updated_at ? new Date(data.updated_at) : null;
-  html += '<div class="tagline" style="margin:14px 2px;">Koersen via Yahoo Finance, met enkele minuten vertraging' + (updated ? " · bijgewerkt om " + updated.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }) : "") + '. Aankopen komen uit je Revolut-afschrift van 14 nov 2026; USD-posities zijn omgerekend met de EUR/USD-koers van de dag.</div>';
+  html += '<div class="tagline" style="margin:14px 2px;">Koersen via Yahoo Finance, met enkele minuten vertraging' + (updated ? " · bijgewerkt om " + updated.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }) : "") + '. Aankopen komen uit je Revolut-afschrift van 14 nov 2026 plus latere aankopen die je doorgaf; USD-posities zijn omgerekend met de EUR/USD-koers van de dag.</div>';
   html += '</div>';
 
   container.innerHTML = html;
