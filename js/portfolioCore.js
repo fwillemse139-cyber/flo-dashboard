@@ -17,6 +17,19 @@ export function priceAt(history, tSec) {
   return best != null ? best : history[0][1];
 }
 
+// Aankopen staan op de koers/het aantal van toen, Yahoo's historie is achteraf
+// gecorrigeerd voor splitsingen. Per aankoop dus het aantal ×ratio en de koers
+// ÷ratio voor elke splitsing ná die aankoop (kostprijs blijft gelijk). Zonder
+// dit stond een aandeel na een split ineens op -90%.
+export function adjustedTrades(quotes) {
+  return TRADES.map(function (t) {
+    var q = quotes && quotes[t[1]];
+    var f = 1, at = dateToSec(t[0]);
+    ((q && q.splits) || []).forEach(function (sp) { if (sp.t > at) f *= sp.ratio; });
+    return [t[0], t[1], t[2], t[3] * f, t[4] / f];
+  });
+}
+
 function eurOf(amount, ccy, fx) { return ccy === "USD" ? amount / fx : amount; }
 
 // quotes: { SYM: { price, prevClose, history } } (in de eigen valuta van het
@@ -26,7 +39,7 @@ export function computeState(quotes, fxHistory, nowSec) {
   var lots = {}; // SYM -> { qty, costEur }
   var netInvested = 0, dividendsEur = 0;
 
-  TRADES.forEach(function (t) {
+  adjustedTrades(quotes).forEach(function (t) {
     var sym = t[1], side = t[2], qty = t[3], price = t[4];
     var h = HOLDINGS[sym];
     var fx = priceAt(fxHistory, dateToSec(t[0]) + DAY / 2) || fxNow;
@@ -83,12 +96,13 @@ export function computeState(quotes, fxHistory, nowSec) {
 // Eén punt per kalenderdag vanaf de eerste aankoop: waarde van de posities
 // (met doorgetrokken slotkoersen in het weekend) en cumulatief ingelegd.
 export function buildSeries(quotes, fxHistory, nowSec) {
+  var trades = adjustedTrades(quotes);
   var start = dateToSec(FIRST_TRADE_DATE) - DAY / 2; // 00:00 UTC van de eerste handelsdag
   var out = [];
   for (var t = start; t <= nowSec; t += DAY) {
     var endOfDay = t + DAY - 1;
     var qty = {}, invested = 0;
-    TRADES.forEach(function (tr) {
+    trades.forEach(function (tr) {
       if (dateToSec(tr[0]) > endOfDay) return;
       var h = HOLDINGS[tr[1]];
       var fx = priceAt(fxHistory, dateToSec(tr[0]) + DAY / 2) || 1;

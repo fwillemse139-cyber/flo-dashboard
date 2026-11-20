@@ -54,9 +54,8 @@ export var TRADES = [
   ["2026-10-30", "QUTM", "buy", 2.27066303, 22.02],
   ["2026-11-11", "SEC0", "buy", 6.42013353, 15.58],
   ["2026-11-11", "VUAA", "buy", 1.72153629, 131.62],
-  // Na het afschrift van 14 nov: aankoop doorgegeven via een screenshot uit de Revolut-app
-  // (1 ANT à $83, geen kosten, effectenrekening, ISIN US03703U1079).
-  ["2026-11-20", "ANT", "buy", 1, 83]
+  // 1 ANT à $83, geen kosten (ISIN US03703U1079). Datum uit het afschrift van 20 nov: 19 nov 07:00 GMT.
+  ["2026-11-19", "ANT", "buy", 1, 83]
 ];
 
 // [datum, symbool, bedrag in USD]
@@ -65,8 +64,8 @@ export var DIVIDENDS = [
   ["2026-11-10", "MA", 0.15]
 ];
 
-// Niet-geïnvesteerde cash op de USD-beleggingsrekening: $275,79 volgens het afschrift van
-// 14 nov, minus de $83 voor ANT op 20 nov (aanname: betaald uit die wachtende cash).
+// Niet-geïnvesteerde cash op de USD-beleggingsrekening, volgens het Revolut-afschrift van 20 nov
+// 2026 ($275,79 op 14 nov minus de $83 voor ANT).
 export var CASH_USD = 192.79;
 
 export var FIRST_TRADE_DATE = TRADES[0][0];

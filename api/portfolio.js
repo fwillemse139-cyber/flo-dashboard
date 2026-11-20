@@ -8,7 +8,7 @@ var DAY = 86400;
 
 async function fetchChart(symbol, period1, period2) {
   var url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol) +
-    "?interval=1d&period1=" + period1 + "&period2=" + period2;
+    "?interval=1d&events=splits&period1=" + period1 + "&period2=" + period2;
   var r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
   var data = await r.json();
   var result = data && data.chart && data.chart.result && data.chart.result[0];
@@ -34,7 +34,14 @@ async function fetchChart(symbol, period1, period2) {
   } else {
     history.push([liveTime, live]);
   }
-  return { currency: result.meta.currency, price: live, prevClose: prevClose, history: history };
+  // Yahoo's historie is al gecorrigeerd voor splitsingen; de aankopen niet. Daarom
+  // geven we de splitsingen mee zodat de client het aantal kan omrekenen.
+  var splitEvents = (result.events && result.events.splits) || {};
+  var splits = Object.keys(splitEvents).map(function (k) {
+    var e = splitEvents[k];
+    return { t: e.date, ratio: e.numerator / e.denominator };
+  }).sort(function (a, b) { return a.t - b.t; });
+  return { currency: result.meta.currency, price: live, prevClose: prevClose, history: history, splits: splits };
 }
 
 export default async function handler(req, res) {

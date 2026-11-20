@@ -239,14 +239,29 @@ nieuwe pagina, los van de weggehaalde Finance-pagina.
   grafiekjes, prestatiegrafiek, donut met legenda, holdings-tabel,
   inzichten-paneel, stippenraster en groeiende voortgangsbalken. Eigen
   twist: donut-modi, inzichten uit eigen data, sparkline per positie.
-- **Aankoop na het afschrift (20 nov 2026)**: Anthropic (`ANT`, NASDAQ, USD,
-  ISIN US03703U1079) — 1 aandeel à $83, doorgegeven als screenshot uit de
-  Revolut-app, daarom als losse regel onderaan `TRADES`. `CASH_USD` is
-  daarvoor met $83 verlaagd (275,79 → 192,79) onder de **aanname** dat het
-  uit de wachtende cash is betaald; klopt dat niet, dan is dat getal het
-  eerste dat bijgesteld moet worden. Yahoo heeft van ANT nog maar één
-  koerspunt (net genoteerd), dus de historie van die positie begint op de
-  aankoopdag en `prevClose` is `null` (dagverschil per positie dan 0).
+- **Anthropic (`ANT`, NASDAQ, USD, ISIN US03703U1079)**: 1 aandeel à $83,
+  gekocht 19 nov 2026 07:00 GMT (eerst via een screenshot doorgekregen als
+  "20 nov", daarna gecorrigeerd met het afschrift van 20 nov). Dat
+  afschrift bevestigt ook `CASH_USD` = $192,79. Yahoo heeft van ANT maar
+  een paar dagen koershistorie, dus de lijn van die positie begint pas bij
+  de aankoop en `prevClose` kan `null` zijn (dagverschil per positie dan 0).
+- **Aandelensplitsingen worden automatisch verwerkt (20 nov 2026)**: SanDisk
+  (SNDK) deed op 20 nov een **8:1-split**. Yahoo's koershistorie is dan
+  *achteraf gecorrigeerd* (SNDK $885 → $110), maar `TRADES` bevat het
+  aantal/de koers van toen — zonder correctie stond SNDK op −90%.
+  `api/portfolio.js` vraagt daarom `events=splits` op en geeft per
+  instrument `splits: [{t, ratio}]` mee; `adjustedTrades()` in
+  `portfolioCore.js` rekent elke aankoop van vóór een split om (aantal ×
+  ratio, koers ÷ ratio, kostprijs gelijk). **Dus `TRADES` altijd invullen met
+  het aantal/de koers op de aankoopdag zelf, nooit zelf corrigeren.** Test
+  tegen het afschrift: alle 12 aantallen komen exact overeen (SNDK 0,0513 →
+  0,4101).
+  **Let op, Revolut-afschriften op/rond een split zijn onbetrouwbaar**:
+  het afschrift van 20 nov toonde het nieuwe aantal (×8) maar nog de oude
+  koers (US$755, = Yahoo's slotkoers van de dag ervoor × 8), waardoor SNDK
+  op US$309,70 uitkwam terwijl de echte waarde ~US$35 is. Gebruik van zo'n
+  afschrift dus de **aantallen en transacties**, nooit de "Price"/"Value"-
+  kolommen van de portfolio breakdown.
 - Bewust niet gedaan: intraday-/websocket-koersen (Yahoo is vertraagd) en
   het Revolut-"Cash top-up"-verloop als stortingen; cash is alleen het
   eindsaldo van de USD-rekening (`CASH_USD`).
